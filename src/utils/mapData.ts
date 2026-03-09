@@ -1,4 +1,3 @@
-// src/utils/mapData.ts
 export interface NodePosition {
   id: string;
   name: string;

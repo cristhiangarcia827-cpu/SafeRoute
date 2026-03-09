@@ -1,4 +1,3 @@
-// src/components/MapVisualizer.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { nodePositions, connections } from '../utils/mapData';
