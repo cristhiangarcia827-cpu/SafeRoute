@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { HomeStackParamList } from '../navigation/types';
+import { TabParamList } from '../navigation/types';
 import { lugares } from '../utils/routesData';
 
-type HomeScreenNavigationProp = StackNavigationProp<HomeStackParamList, 'Home'>;
-type HomeScreenRouteProp = RouteProp<HomeStackParamList, 'Home'>;
+type HomeScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Inicio'>;
+type HomeScreenRouteProp = RouteProp<TabParamList, 'Inicio'>;
 
 const { width } = Dimensions.get('window');
 
@@ -26,7 +25,6 @@ const HomeScreen: React.FC = () => {
   const [destino, setDestino] = useState<string | undefined>(route.params?.destino);
   const [rutaActual, setRutaActual] = useState<string[] | undefined>(route.params?.ruta);
 
-  // Actualizar estado cuando lleguen nuevos parámetros (por ejemplo al volver de RouteScreen)
   useEffect(() => {
     if (route.params?.ruta) {
       setOrigen(route.params.origen);
@@ -35,7 +33,7 @@ const HomeScreen: React.FC = () => {
     }
   }, [route.params]);
 
-  // Posiciones fijas para los nodos en el mapa (simulado)
+  // Posiciones fijas para los nodos en el mapa
   const nodePositions: { [key: string]: { x: number; y: number } } = {
     '1': { x: 100, y: 200 }, // Casa
     '2': { x: 200, y: 100 }, // Universidad
@@ -58,7 +56,6 @@ const HomeScreen: React.FC = () => {
     { desde: '6', hasta: '3' },
   ];
 
-  // Verifica si una conexión (arista) pertenece a la ruta actual
   const esParteDeRuta = (desdeId: string, hastaId: string): boolean => {
     if (!rutaActual) return false;
     for (let i = 0; i < rutaActual.length - 1; i++) {
@@ -72,7 +69,6 @@ const HomeScreen: React.FC = () => {
     return false;
   };
 
-  // Limpiar la ruta actual (tanto estado local como parámetros de navegación)
   const limpiarRuta = () => {
     setOrigen(undefined);
     setDestino(undefined);
@@ -86,9 +82,8 @@ const HomeScreen: React.FC = () => {
         <Text style={styles.title}>SafeRoute</Text>
         <Text style={styles.subtitle}>Mapa de conectividad de la ciudad</Text>
 
-        {/* Mapa visual de nodos y conexiones */}
         <View style={styles.mapContainer}>
-          {/* Dibujar líneas (conexiones) */}
+          {/* Líneas de conexión */}
           {conexiones.map((conn, index) => {
             const desdePos = nodePositions[conn.desde];
             const hastaPos = nodePositions[conn.hasta];
@@ -118,7 +113,7 @@ const HomeScreen: React.FC = () => {
             );
           })}
 
-          {/* Dibujar nodos (círculos) */}
+          {/* Nodos */}
           {lugares.map((lugar) => {
             const pos = nodePositions[lugar.id];
             if (!pos) return null;
@@ -126,10 +121,10 @@ const HomeScreen: React.FC = () => {
             const isOrigen = origen === lugar.id;
             const isDestino = destino === lugar.id;
 
-            let backgroundColor = '#007AFF'; // color por defecto (azul)
-            if (isOrigen) backgroundColor = '#FF9500'; // naranja para origen
-            else if (isDestino) backgroundColor = '#FF3B30'; // rojo para destino
-            else if (isInRoute) backgroundColor = '#4CAF50'; // verde para nodos intermedios
+            let backgroundColor = '#007AFF';
+            if (isOrigen) backgroundColor = '#FF9500';
+            else if (isDestino) backgroundColor = '#FF3B30';
+            else if (isInRoute) backgroundColor = '#4CAF50';
 
             return (
               <View
@@ -149,7 +144,6 @@ const HomeScreen: React.FC = () => {
           })}
         </View>
 
-        {/* Información de la ruta actual (si existe) */}
         {rutaActual && (
           <View style={styles.routeInfo}>
             <Text style={styles.routeTitle}>Ruta actual:</Text>
@@ -164,24 +158,14 @@ const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Mensaje cuando no hay ruta seleccionada */}
         {!rutaActual && (
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              Ve a "Buscar Ruta" en el botón flotante para encontrar caminos seguros entre lugares.
+              Usa la pestaña "Ruta" para buscar caminos seguros entre lugares.
             </Text>
           </View>
         )}
       </ScrollView>
-
-      {/* Botón flotante para ir a la pantalla de búsqueda de rutas */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('Route')}
-      >
-        <Ionicons name="map" size={24} color="#fff" />
-        <Text style={styles.fabText}>Buscar Ruta</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -192,7 +176,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   scrollContainer: {
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 28,
@@ -282,28 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#007AFF',
-    borderRadius: 30,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  fabText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginLeft: 8,
   },
 });
 

@@ -1,16 +1,16 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 
-export type HomeStackParamList = {
-  Home: {
+export type TabParamList = {
+  Inicio: {
     origen?: string;
     destino?: string;
     ruta?: string[];
   } | undefined;
-  Route: undefined;
-};
-
-export type TabParamList = {
-  Inicio: NavigatorScreenParams<HomeStackParamList>;
+  Ruta: undefined;          
   Reportar: undefined;
   Alertas: undefined;
+};
+
+export type RootStackParamList = {
+  Tabs: NavigatorScreenParams<TabParamList>;
 };

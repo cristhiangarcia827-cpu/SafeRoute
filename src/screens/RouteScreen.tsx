@@ -8,13 +8,13 @@ import {
   FlatList,
   ScrollView,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { HomeStackParamList } from '../navigation/types';
+import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
 import { cityGraph, getLugaresOptions, lugares } from '../utils/routesData';
 
-type RouteScreenNavigationProp = StackNavigationProp<HomeStackParamList, 'Route'>;
+type RouteScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Ruta'>;
 
 const RouteScreen: React.FC = () => {
   const navigation = useNavigation<RouteScreenNavigationProp>();
@@ -41,8 +41,8 @@ const RouteScreen: React.FC = () => {
     const ruta = cityGraph.encontrarRuta(origen, destino);
 
     if (ruta) {
-      // Navegar de regreso a Home pasando los datos de la ruta
-      navigation.navigate('Home', {
+      // Navegar a la pestaña Inicio pasando los datos de la ruta
+      navigation.navigate('Inicio', {
         origen,
         destino,
         ruta,
@@ -114,7 +114,6 @@ const RouteScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Modal para seleccionar lugar */}
       <Modal
         animationType="slide"
         transparent={true}
