@@ -49,31 +49,51 @@ export class Graph {
 
   // BFS para encontrar la ruta más corta entre dos lugares
   encontrarRuta(desdeId: string, hastaId: string): string[] | null {
+    return this.encontrarRutaConRestricciones(desdeId, hastaId, new Set());
+  }
+
+  encontrarRutaEvitando(
+    desdeId: string,
+    hastaId: string,
+    prohibidos: Set<string>
+  ): string[] | null {
+    return this.encontrarRutaConRestricciones(desdeId, hastaId, prohibidos);
+  }
+
+  private encontrarRutaConRestricciones(
+    desdeId: string,
+    hastaId: string,
+    prohibidos: Set<string>
+  ): string[] | null {
     if (!this.lugares.has(desdeId) || !this.lugares.has(hastaId)) {
+      return null;
+    }
+
+    if (prohibidos.has(desdeId) || prohibidos.has(hastaId)) {
       return null;
     }
 
     const visitados = new Set<string>();
     const cola: { lugar: string; camino: string[] }[] = [];
-    
+
     visitados.add(desdeId);
     cola.push({ lugar: desdeId, camino: [desdeId] });
 
     while (cola.length > 0) {
       const actual = cola.shift()!;
-      
+
       if (actual.lugar === hastaId) {
         return actual.camino;
       }
 
       const vecinos = this.adyacencias.get(actual.lugar) || [];
-      
+
       for (const vecino of vecinos) {
-        if (!visitados.has(vecino)) {
+        if (!visitados.has(vecino) && !prohibidos.has(vecino)) {
           visitados.add(vecino);
           cola.push({
             lugar: vecino,
-            camino: [...actual.camino, vecino]
+            camino: [...actual.camino, vecino],
           });
         }
       }

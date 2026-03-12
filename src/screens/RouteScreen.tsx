@@ -12,7 +12,8 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
-import { cityGraph, getLugaresOptions, lugares } from '../utils/routesData';
+import { cityGraph, getLugaresOptions, lugares, nombreToId } from '../utils/routesData';
+import AlertService from '../services/AlertService';
 
 type RouteScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Ruta'>;
 
@@ -38,7 +39,27 @@ const RouteScreen: React.FC = () => {
       return;
     }
 
-    const ruta = cityGraph.encontrarRuta(origen, destino);
+    // Obtener todos los reportes
+    const reports = AlertService.getAllReports();
+
+    // Extraer los nombres de lugares con reportes
+    const lugaresConReportes = reports.map(r => r.lugar);
+
+    // Convertir esos nombres a IDs
+    const idsProhibidos = new Set<string>();
+    lugaresConReportes.forEach(nombre => {
+      const id = nombreToId[nombre];
+      if (id) {
+        idsProhibidos.add(id);
+      }
+    });
+
+    // Eliminar origen y destino de los prohibidos
+    idsProhibidos.delete(origen);
+    idsProhibidos.delete(destino);
+
+    // Buscar ruta evitando los lugares prohibidos
+    const ruta = cityGraph.encontrarRutaEvitando(origen, destino, idsProhibidos);
 
     if (ruta) {
       // Navegar a la pestaña Inicio pasando los datos de la ruta
@@ -48,7 +69,7 @@ const RouteScreen: React.FC = () => {
         ruta,
       });
     } else {
-      setMensajeError('No se encontró una ruta entre estos lugares');
+      setMensajeError('No se encontró una ruta segura que evite las zonas peligrosas');
     }
   };
 
@@ -147,7 +168,7 @@ const RouteScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <CustomButton
-          title="Buscar Ruta"
+          title="Buscar Ruta Segura"
           onPress={buscarRuta}
           variant="primary"
           style={styles.button}

@@ -3,41 +3,47 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   ScrollView,
   Alert,
   Modal,
   TouchableOpacity,
+  FlatList,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { TabParamList } from '../navigation/types'; // Importamos los tipos de las pestañas
+import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
 import AlertService from '../services/AlertService';
 import { IncidenteType } from '../models/Report';
+import { lugares, getLugaresOptions } from '../utils/routesData';
 
-// Definimos el tipo de navegación para esta pantalla (está dentro de la pestaña "Reportar")
 type ReportScreenNavigationProp = StackNavigationProp<TabParamList, 'Reportar'>;
 
 const ReportScreen: React.FC = () => {
   const navigation = useNavigation<ReportScreenNavigationProp>();
 
-  const [lugar, setLugar] = useState('');
+  const [lugar, setLugar] = useState<string>(''); // Guardamos el ID del lugar
   const [tipoIncidente, setTipoIncidente] = useState<IncidenteType>('Robo');
   const [descripcion, setDescripcion] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const [lugarModalVisible, setLugarModalVisible] = useState(false);
 
   const incidentes: IncidenteType[] = ['Robo', 'Asalto', 'Acoso', 'Zona Oscura', 'Otro'];
+  const lugaresOptions = getLugaresOptions();
 
   const handleSubmit = () => {
-    if (!lugar.trim() || !descripcion.trim()) {
+    if (!lugar || !descripcion.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
 
+    const lugarSeleccionado = lugares.find(l => l.id === lugar);
+    const nombreLugar = lugarSeleccionado ? lugarSeleccionado.nombre : 'Desconocido';
+
     const newReport = {
       id: Date.now().toString(),
-      lugar: lugar.trim(),
+      lugar: nombreLugar,
       tipoIncidente,
       descripcion: descripcion.trim(),
       fecha: new Date().toLocaleDateString(),
@@ -51,10 +57,7 @@ const ReportScreen: React.FC = () => {
       [
         {
           text: 'Ver reportes',
-          onPress: () => {
-            // Navegamos a la pestaña "Alertas" (nombre definido en TabsNavigator)
-            navigation.navigate('Alertas');
-          },
+          onPress: () => navigation.navigate('Alertas'),
         },
         {
           text: 'Nuevo reporte',
@@ -68,15 +71,56 @@ const ReportScreen: React.FC = () => {
     );
   };
 
+  const renderLugarItem = ({ item }: { item: { label: string; value: string } }) => (
+    <TouchableOpacity
+      style={styles.modalItem}
+      onPress={() => {
+        setLugar(item.value);
+        setLugarModalVisible(false);
+      }}
+    >
+      <Text style={styles.modalItemText}>{item.label}</Text>
+    </TouchableOpacity>
+  );
+
+  const getNombreLugar = (id: string) => {
+    return lugares.find(l => l.id === id)?.nombre || 'Seleccionar lugar';
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Lugar del incidente *</Text>
-      <TextInput
-        style={styles.input}
-        value={lugar}
-        onChangeText={setLugar}
-        placeholder="Ej: Parque Central, Calle 50, etc."
-      />
+      <TouchableOpacity
+        style={styles.selectButton}
+        onPress={() => setLugarModalVisible(true)}
+      >
+        <Text style={styles.selectButtonText}>
+          {lugar ? getNombreLugar(lugar) : 'Seleccionar lugar'}
+        </Text>
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={lugarModalVisible}
+        onRequestClose={() => setLugarModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Selecciona el lugar</Text>
+            <FlatList
+              data={lugaresOptions}
+              keyExtractor={(item) => item.value}
+              renderItem={renderLugarItem}
+            />
+            <CustomButton
+              title="Cancelar"
+              onPress={() => setLugarModalVisible(false)}
+              variant="secondary"
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.label}>Tipo de incidente *</Text>
       <TouchableOpacity

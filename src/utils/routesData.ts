@@ -13,6 +13,11 @@ export const lugares = [
   { id: '7', nombre: 'Estación de Policía' },
 ];
 
+export const nombreToId: Record<string, string> = {};
+lugares.forEach(lugar => {
+  nombreToId[lugar.nombre] = lugar.id;
+});
+
 // Inicializar lugares en el grafo
 lugares.forEach(lugar => {
   cityGraph.agregarLugar(lugar.id, lugar.nombre);
