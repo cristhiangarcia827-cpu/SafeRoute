@@ -10,12 +10,20 @@ import {
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { TabParamList } from '../navigation/types';
-import { lugares } from '../utils/routesData';
+import { lugares, conexiones } from '../utils/routesData';
+import {
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  nodePositions,
+  callesHorizontales,
+  callesVerticales,
+  mapColors,
+} from '../utils/mapData';
+
+const { height } = Dimensions.get('window');
 
 type HomeScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Inicio'>;
 type HomeScreenRouteProp = RouteProp<TabParamList, 'Inicio'>;
-
-const { width } = Dimensions.get('window');
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -32,29 +40,6 @@ const HomeScreen: React.FC = () => {
       setRutaActual(route.params.ruta);
     }
   }, [route.params]);
-
-  // Posiciones fijas para los nodos en el mapa
-  const nodePositions: { [key: string]: { x: number; y: number } } = {
-    '1': { x: 100, y: 200 }, // Casa
-    '2': { x: 200, y: 100 }, // Universidad
-    '3': { x: 150, y: 300 }, // Parque
-    '4': { x: 300, y: 150 }, // Hospital
-    '5': { x: 250, y: 250 }, // Centro Comercial
-    '6': { x: 180, y: 400 }, // Biblioteca
-    '7': { x: 350, y: 300 }, // Estación de Policía
-  };
-
-  const conexiones = [
-    { desde: '1', hasta: '2' },
-    { desde: '1', hasta: '3' },
-    { desde: '2', hasta: '4' },
-    { desde: '2', hasta: '5' },
-    { desde: '3', hasta: '6' },
-    { desde: '4', hasta: '7' },
-    { desde: '5', hasta: '6' },
-    { desde: '5', hasta: '7' },
-    { desde: '6', hasta: '3' },
-  ];
 
   const esParteDeRuta = (desdeId: string, hastaId: string): boolean => {
     if (!rutaActual) return false;
@@ -78,79 +63,131 @@ const HomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>SafeRoute</Text>
-        <Text style={styles.subtitle}>Mapa de conectividad de la ciudad</Text>
+        <Text style={styles.subtitle}>Mapa de la ciudad (desliza horizontalmente)</Text>
 
-        <View style={styles.mapContainer}>
-          {/* Líneas de conexión */}
-          {conexiones.map((conn, index) => {
-            const desdePos = nodePositions[conn.desde];
-            const hastaPos = nodePositions[conn.hasta];
-            if (!desdePos || !hastaPos) return null;
+        {/* ScrollView horizontal para el mapa */}
+        <ScrollView 
+          horizontal={true}
+          showsHorizontalScrollIndicator={true}
+          contentContainerStyle={styles.horizontalScrollContent}
+        >
+          <View style={[styles.mapContainer, { width: MAP_WIDTH, height: MAP_HEIGHT }]}>
+            {/* Fondo de ciudad */}
+            <View style={[styles.cityBackground, { backgroundColor: mapColors.background }]}>
+              {/* Calles horizontales */}
+              {callesHorizontales.map((y, index) => (
+                <View
+                  key={`h-${index}`}
+                  style={[
+                    styles.calleHorizontal,
+                    { top: y, width: MAP_WIDTH, backgroundColor: mapColors.calle },
+                  ]}
+                />
+              ))}
+              {/* Calles verticales */}
+              {callesVerticales.map((x, index) => (
+                <View
+                  key={`v-${index}`}
+                  style={[
+                    styles.calleVertical,
+                    { left: x, height: MAP_HEIGHT, backgroundColor: mapColors.calle },
+                  ]}
+                />
+              ))}
+              {/* Manzanas */}
+              {callesHorizontales.slice(0, -1).map((y, i) =>
+                callesVerticales.slice(0, -1).map((x, j) => (
+                  <View
+                    key={`block-${i}-${j}`}
+                    style={[
+                      styles.manzana,
+                      {
+                        left: x + 2,
+                        top: y + 2,
+                        width: callesVerticales[j + 1] - x - 4,
+                        height: callesHorizontales[i + 1] - y - 4,
+                        backgroundColor: mapColors.manzana,
+                        borderColor: mapColors.bordeManzana,
+                      },
+                    ]}
+                  />
+                ))
+              )}
+            </View>
 
-            const isInRoute = esParteDeRuta(conn.desde, conn.hasta);
+            {/* Líneas de conexiones */}
+            {conexiones.map((conn, index) => {
+              const desde = nodePositions[conn.desde];
+              const hasta = nodePositions[conn.hasta];
+              if (!desde || !hasta) return null;
 
-            const deltaX = hastaPos.x - desdePos.x;
-            const deltaY = hastaPos.y - desdePos.y;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+              const isInRoute = esParteDeRuta(conn.desde, conn.hasta);
+              const deltaX = hasta.x - desde.x;
+              const deltaY = hasta.y - desde.y;
+              const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+              const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
 
-            return (
-              <View
-                key={`line-${index}`}
-                style={[
-                  styles.line,
-                  {
-                    left: desdePos.x,
-                    top: desdePos.y,
-                    width: distance,
-                    transform: [{ rotate: `${angle}deg` }],
-                    backgroundColor: isInRoute ? '#4CAF50' : '#ccc',
-                  },
-                ]}
-              />
-            );
-          })}
+              return (
+                <View
+                  key={`conn-${index}`}
+                  style={[
+                    styles.line,
+                    {
+                      left: desde.x,
+                      top: desde.y,
+                      width: distance,
+                      transform: [{ rotate: `${angle}deg` }],
+                      backgroundColor: isInRoute ? mapColors.lineaRuta : mapColors.lineaNormal,
+                      opacity: isInRoute ? 1 : 0.4,
+                      height: isInRoute ? 4 : 2,
+                    },
+                  ]}
+                />
+              );
+            })}
 
-          {/* Nodos */}
-          {lugares.map((lugar) => {
-            const pos = nodePositions[lugar.id];
-            if (!pos) return null;
-            const isInRoute = rutaActual?.includes(lugar.id);
-            const isOrigen = origen === lugar.id;
-            const isDestino = destino === lugar.id;
+            {/* Marcadores de lugares */}
+            {lugares.map((lugar) => {
+              const pos = nodePositions[lugar.id];
+              if (!pos) return null;
+              const isInRoute = rutaActual?.includes(lugar.id);
+              const isOrigen = origen === lugar.id;
+              const isDestino = destino === lugar.id;
 
-            let backgroundColor = '#007AFF';
-            if (isOrigen) backgroundColor = '#FF9500';
-            else if (isDestino) backgroundColor = '#FF3B30';
-            else if (isInRoute) backgroundColor = '#4CAF50';
+              let backgroundColor = mapColors.nodoNormal;
+              if (isOrigen) backgroundColor = mapColors.nodoOrigen;
+              else if (isDestino) backgroundColor = mapColors.nodoDestino;
+              else if (isInRoute) backgroundColor = mapColors.nodoRuta;
 
-            return (
-              <View
-                key={lugar.id}
-                style={[
-                  styles.node,
-                  {
-                    left: pos.x - 20,
-                    top: pos.y - 20,
-                    backgroundColor,
-                  },
-                ]}
-              >
-                <Text style={styles.nodeText}>{lugar.nombre[0]}</Text>
-              </View>
-            );
-          })}
-        </View>
+              return (
+                <View
+                  key={lugar.id}
+                  style={[
+                    styles.marker,
+                    {
+                      left: pos.x - 15,
+                      top: pos.y - 15,
+                    },
+                  ]}
+                >
+                  <View style={[styles.markerDot, { backgroundColor }]} />
+                  <Text style={styles.markerLabel}>{lugar.nombre}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
 
         {rutaActual && (
           <View style={styles.routeInfo}>
-            <Text style={styles.routeTitle}>Ruta actual:</Text>
+            <Text style={styles.routeTitle}>🛣️ Ruta segura:</Text>
             <Text style={styles.routePath}>
-              {rutaActual
-                .map((id) => lugares.find((l) => l.id === id)?.nombre)
-                .join(' → ')}
+              {rutaActual.map((id) => lugares.find((l) => l.id === id)?.nombre).join(' → ')}
             </Text>
             <TouchableOpacity onPress={limpiarRuta} style={styles.clearButton}>
               <Text style={styles.clearButtonText}>Limpiar ruta</Text>
@@ -161,7 +198,7 @@ const HomeScreen: React.FC = () => {
         {!rutaActual && (
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              Usa la pestaña "Ruta" para buscar caminos seguros entre lugares.
+              Ve a la pestaña "Ruta" para encontrar caminos seguros evitando zonas peligrosas.
             </Text>
           </View>
         )}
@@ -173,67 +210,98 @@ const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#f0f0f0',
   },
   scrollContainer: {
-    paddingBottom: 20,
+    paddingBottom: 30,
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#007AFF',
-    textAlign: 'center',
     marginTop: 20,
+    marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
+    color: '#666',
     marginBottom: 20,
   },
+  horizontalScrollContent: {
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
   mapContainer: {
-    width: width - 40,
-    height: 450,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginHorizontal: 20,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 12,
     position: 'relative',
-    borderWidth: 1,
-    borderColor: '#ddd',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cityBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  calleHorizontal: {
+    position: 'absolute',
+    height: 4,
+    left: 0,
+  },
+  calleVertical: {
+    position: 'absolute',
+    width: 4,
+    top: 0,
+  },
+  manzana: {
+    position: 'absolute',
+    borderWidth: 1,
   },
   line: {
     position: 'absolute',
-    height: 3,
-    backgroundColor: '#ccc',
     transformOrigin: 'top left',
+    zIndex: 5,
   },
-  node: {
+  marker: {
     position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+  },
+  markerDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: '#fff',
-    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
-    shadowRadius: 3,
+    shadowRadius: 2,
+    elevation: 4,
   },
-  nodeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+  markerLabel: {
+    fontSize: 10,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+    color: '#333',
+    fontWeight: '600',
   },
   routeInfo: {
     backgroundColor: '#E8F5E9',
     padding: 15,
-    marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 8,
+    width: '90%',
+    alignSelf: 'stretch',
+    marginHorizontal: 20,
   },
   routeTitle: {
     fontSize: 16,
@@ -257,14 +325,16 @@ const styles = StyleSheet.create({
   infoContainer: {
     backgroundColor: '#fff',
     padding: 20,
-    marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 8,
+    width: '90%',
+    alignSelf: 'stretch',
+    marginHorizontal: 20,
     alignItems: 'center',
   },
   infoText: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#666',
     textAlign: 'center',
   },
 });
