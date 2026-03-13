@@ -1,10 +1,13 @@
 import { Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
-export const MAP_WIDTH = 500;
-export const MAP_HEIGHT = 500;
+export const MAP_VISIBLE_WIDTH = width - 40;
+export const MAP_VISIBLE_HEIGHT = 500;
 
-// Posiciones de los lugares en el mapa (coordenadas x, y)
+export const MAP_CONTENT_WIDTH = 600;         
+export const MAP_CONTENT_HEIGHT = 500;        
+
+// Posiciones de los lugares en el mapa dentro del contenido de 600px)
 export const nodePositions: { [key: string]: { x: number; y: number } } = {
   '1': { x: 200, y: 220 }, // Centro
   '2': { x: 80, y: 80 },   // Estación Norte
@@ -23,9 +26,9 @@ export const nodePositions: { [key: string]: { x: number; y: number } } = {
   '15': { x: 400, y: 350 }, // Parque Industrial
 };
 
-// Líneas de la cuadrícula urbana (calles)
+// Calles horizontales y verticales para dibujar el mapa
 export const callesHorizontales = [100, 180, 260, 340, 420];
-export const callesVerticales = [80, 160, 240, 320, 400];
+export const callesVerticales = [80, 160, 240, 320, 400, 480, 560];
 
 export const mapColors = {
   background: '#c0d9e8',
