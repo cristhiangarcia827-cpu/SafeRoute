@@ -67,120 +67,197 @@ const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>SafeRoute</Text>
-        <Text style={styles.subtitle}>Mapa de la ciudad (desliza horizontalmente)</Text>
+        <Text style={styles.subtitle}>Mapa de la ciudad (desliza en ambas direcciones)</Text>
 
-        {/* Contenedor con ancho fijo viewport que ahora contiene el ScrollView horizontal */}
+        {/* Viewport del mapa con anidamiento de ScrollViews */}
         <View style={[styles.mapViewport, { width: MAP_VISIBLE_WIDTH, height: MAP_VISIBLE_HEIGHT }]}>
+          {/* Scroll horizontal principal */}
           <ScrollView
             horizontal={true}
             showsHorizontalScrollIndicator={true}
-            contentContainerStyle={{ width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }}
+            nestedScrollEnabled={true}
           >
-            <View style={[styles.mapContent, { width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }]}>
-              {/* Fondo de ciudad */}
-              <View style={[styles.cityBackground, { backgroundColor: mapColors.background }]}>
-                {/* Calles horizontales ahora se dibujan a lo ancho del contenido */}
-                {callesHorizontales.map((y, index) => (
-                  <View
-                    key={`h-${index}`}
-                    style={[
-                      styles.calleHorizontal,
-                      { top: y, width: MAP_CONTENT_WIDTH, backgroundColor: mapColors.calle },
-                    ]}
-                  />
-                ))}
-                {/* Calles verticales */}
-                {callesVerticales.map((x, index) => (
-                  <View
-                    key={`v-${index}`}
-                    style={[
-                      styles.calleVertical,
-                      { left: x, height: MAP_CONTENT_HEIGHT, backgroundColor: mapColors.calle },
-                    ]}
-                  />
-                ))}
-                {/* Manzanas */}
-                {callesHorizontales.slice(0, -1).map((y, i) =>
-                  callesVerticales.slice(0, -1).map((x, j) => (
+            {/* Scroll vertical interno */}
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }}
+            >
+              <View style={[styles.mapContent, { width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }]}>
+                {/* Fondo de ciudad */}
+                <View style={[styles.cityBackground, { backgroundColor: mapColors.background }]}>
+                  {/* Calles horizontales */}
+                  {callesHorizontales.map((y, index) => (
                     <View
-                      key={`block-${i}-${j}`}
+                      key={`h-${index}`}
                       style={[
-                        styles.manzana,
-                        {
-                          left: x + 2,
-                          top: y + 2,
-                          width: callesVerticales[j + 1] - x - 4,
-                          height: callesHorizontales[i + 1] - y - 4,
-                          backgroundColor: mapColors.manzana,
-                          borderColor: mapColors.bordeManzana,
-                        },
+                        styles.calleHorizontal,
+                        { top: y, width: MAP_CONTENT_WIDTH, backgroundColor: mapColors.calle },
                       ]}
                     />
-                  ))
-                )}
+                  ))}
+                  {/* Calles verticales */}
+                  {callesVerticales.map((x, index) => (
+                    <View
+                      key={`v-${index}`}
+                      style={[
+                        styles.calleVertical,
+                        { left: x, height: MAP_CONTENT_HEIGHT, backgroundColor: mapColors.calle },
+                      ]}
+                    />
+                  ))}
+                  {/* Manzanas */}
+                  {callesHorizontales.slice(0, -1).map((y, i) =>
+                    callesVerticales.slice(0, -1).map((x, j) => (
+                      <View
+                        key={`block-${i}-${j}`}
+                        style={[
+                          styles.manzana,
+                          {
+                            left: x + 2,
+                            top: y + 2,
+                            width: callesVerticales[j + 1] - x - 4,
+                            height: callesHorizontales[i + 1] - y - 4,
+                            backgroundColor: mapColors.manzana,
+                            borderColor: mapColors.bordeManzana,
+                          },
+                        ]}
+                      />
+                    ))
+                  )}
+                </View>
+
+                {/* Líneas de conexiones */}
+                {conexiones.map((conn) => {
+                  const desde = nodePositions[conn.desde];
+                  const hasta = nodePositions[conn.hasta];
+                  if (!desde || !hasta) return null;
+
+                  const isInRoute = esParteDeRuta(conn.desde, conn.hasta);
+                  const color = isInRoute ? mapColors.lineaRuta : mapColors.lineaNormal;
+                  const opacity = isInRoute ? 1 : 0.4;
+                  const thickness = isInRoute ? 4 : 2;
+
+                  const baseKey = `conn-${conn.desde}-${conn.hasta}`;
+
+                  if (desde.y === hasta.y) {
+                    const x1 = Math.min(desde.x, hasta.x);
+                    const x2 = Math.max(desde.x, hasta.x);
+                    return (
+                      <View
+                        key={baseKey}
+                        style={[
+                          styles.line,
+                          {
+                            left: x1,
+                            top: desde.y,
+                            width: x2 - x1,
+                            height: thickness,
+                            backgroundColor: color,
+                            opacity,
+                          },
+                        ]}
+                      />
+                    );
+                  }
+
+                  if (desde.x === hasta.x) {
+                    const y1 = Math.min(desde.y, hasta.y);
+                    const y2 = Math.max(desde.y, hasta.y);
+                    return (
+                      <View
+                        key={baseKey}
+                        style={[
+                          styles.line,
+                          {
+                            left: desde.x,
+                            top: y1,
+                            width: y2 - y1,
+                            height: thickness,
+                            backgroundColor: color,
+                            opacity,
+                            transform: [{ rotate: '90deg' }],
+                          },
+                        ]}
+                      />
+                    );
+                  }
+
+                  const intermedioX = hasta.x;
+                  const intermedioY = desde.y;
+
+                  const xHorIzq = Math.min(desde.x, intermedioX);
+                  const xHorDer = Math.max(desde.x, intermedioX);
+                  const anchoHor = xHorDer - xHorIzq;
+
+                  const yVerSup = Math.min(intermedioY, hasta.y);
+                  const yVerInf = Math.max(intermedioY, hasta.y);
+                  const altoVer = yVerInf - yVerSup;
+
+                  return (
+                    <React.Fragment key={baseKey}>
+                      <View
+                        style={[
+                          styles.line,
+                          {
+                            left: xHorIzq,
+                            top: intermedioY,
+                            width: anchoHor,
+                            height: thickness,
+                            backgroundColor: color,
+                            opacity,
+                          },
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.line,
+                          {
+                            left: intermedioX,
+                            top: yVerSup,
+                            width: altoVer,
+                            height: thickness,
+                            backgroundColor: color,
+                            opacity,
+                            transform: [{ rotate: '90deg' }],
+                          },
+                        ]}
+                      />
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Marcadores de lugares */}
+                {lugares.map((lugar) => {
+                  const pos = nodePositions[lugar.id];
+                  if (!pos) return null;
+                  const isInRoute = rutaActual?.includes(lugar.id);
+                  const isOrigen = origen === lugar.id;
+                  const isDestino = destino === lugar.id;
+
+                  let backgroundColor = mapColors.nodoNormal;
+                  if (isOrigen) backgroundColor = mapColors.nodoOrigen;
+                  else if (isDestino) backgroundColor = mapColors.nodoDestino;
+                  else if (isInRoute) backgroundColor = mapColors.nodoRuta;
+
+                  return (
+                    <View
+                      key={lugar.id}
+                      style={[
+                        styles.marker,
+                        {
+                          left: pos.x - 15,
+                          top: pos.y - 15,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.markerDot, { backgroundColor }]} />
+                      <Text style={styles.markerLabel}>{lugar.nombre}</Text>
+                    </View>
+                  );
+                })}
               </View>
-
-              {/* Líneas de conexiones */}
-              {conexiones.map((conn, index) => {
-                const desde = nodePositions[conn.desde];
-                const hasta = nodePositions[conn.hasta];
-                if (!desde || !hasta) return null;
-
-                const isInRoute = esParteDeRuta(conn.desde, conn.hasta);
-                const deltaX = hasta.x - desde.x;
-                const deltaY = hasta.y - desde.y;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-
-                return (
-                  <View
-                    key={`conn-${index}`}
-                    style={[
-                      styles.line,
-                      {
-                        left: desde.x,
-                        top: desde.y,
-                        width: distance,
-                        transform: [{ rotate: `${angle}deg` }],
-                        backgroundColor: isInRoute ? mapColors.lineaRuta : mapColors.lineaNormal,
-                        opacity: isInRoute ? 1 : 0.4,
-                        height: isInRoute ? 4 : 2,
-                      },
-                    ]}
-                  />
-                );
-              })}
-
-              {/* Marcadores de lugares */}
-              {lugares.map((lugar) => {
-                const pos = nodePositions[lugar.id];
-                if (!pos) return null;
-                const isInRoute = rutaActual?.includes(lugar.id);
-                const isOrigen = origen === lugar.id;
-                const isDestino = destino === lugar.id;
-
-                let backgroundColor = mapColors.nodoNormal;
-                if (isOrigen) backgroundColor = mapColors.nodoOrigen;
-                else if (isDestino) backgroundColor = mapColors.nodoDestino;
-                else if (isInRoute) backgroundColor = mapColors.nodoRuta;
-
-                return (
-                  <View
-                    key={lugar.id}
-                    style={[
-                      styles.marker,
-                      {
-                        left: pos.x - 15,
-                        top: pos.y - 15,
-                      },
-                    ]}
-                  >
-                    <View style={[styles.markerDot, { backgroundColor }]} />
-                    <Text style={styles.markerLabel}>{lugar.nombre}</Text>
-                  </View>
-                );
-              })}
-            </View>
+            </ScrollView>
           </ScrollView>
         </View>
 

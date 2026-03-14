@@ -3,32 +3,43 @@ import { Dimensions } from 'react-native';
 const { width } = Dimensions.get('window');
 export const MAP_VISIBLE_WIDTH = width - 40;
 export const MAP_VISIBLE_HEIGHT = 500;
+export const MAP_CONTENT_WIDTH = 800;
+export const MAP_CONTENT_HEIGHT = 610;     
 
-export const MAP_CONTENT_WIDTH = 600;         
-export const MAP_CONTENT_HEIGHT = 500;        
+export const callesHorizontales = [100, 200, 300, 400, 500, 600, 700];
+export const callesVerticales = [80, 160, 240, 320, 400, 480, 560, 640, 720];
 
-// Posiciones de los lugares en el mapa dentro del contenido de 600px)
 export const nodePositions: { [key: string]: { x: number; y: number } } = {
-  '1': { x: 200, y: 220 }, // Centro
-  '2': { x: 80, y: 80 },   // Estación Norte
-  '3': { x: 150, y: 180 }, // Parque Central
-  '4': { x: 250, y: 280 }, // Mercado Municipal
-  '5': { x: 120, y: 300 }, // Universidad
-  '6': { x: 300, y: 120 }, // Hospital
-  '7': { x: 180, y: 350 }, // Plaza Mayor
-  '8': { x: 280, y: 380 }, // Barrio Sur
-  '9': { x: 350, y: 250 }, // Zona Industrial
-  '10': { x: 220, y: 420 }, // Estadio
-  '11': { x: 260, y: 180 }, // Centro Comercial
-  '12': { x: 140, y: 250 }, // Biblioteca
-  '13': { x: 320, y: 320 }, // Comisaría
-  '14': { x: 70, y: 400 },  // Terminal
-  '15': { x: 400, y: 350 }, // Parque Industrial
-};
+  '1': { x: 80, y: 100 },   // Plaza Norte
+  '2': { x: 240, y: 100 },  // Estación Norte
+  '3': { x: 400, y: 100 },  // Mirador
+  '4': { x: 560, y: 100 },  // Universidad Norte
+  '5': { x: 720, y: 100 },  // Parque Norte
 
-// Calles horizontales y verticales para dibujar el mapa
-export const callesHorizontales = [100, 180, 260, 340, 420];
-export const callesVerticales = [80, 160, 240, 320, 400, 480, 560];
+  '6': { x: 80, y: 200 },   // Mercado Central
+  '7': { x: 240, y: 200 },  // Centro
+  '8': { x: 400, y: 200 },  // Catedral
+  '9': { x: 560, y: 200 },  // Biblioteca Central
+  '10': { x: 720, y: 200 }, // Centro Comercial
+
+  '11': { x: 80, y: 300 },  // Terminal
+  '12': { x: 240, y: 300 }, // Plaza Mayor
+  '13': { x: 400, y: 300 }, // Hospital
+  '14': { x: 560, y: 300 }, // Estadio
+  '15': { x: 720, y: 300 }, // Zona Industrial
+
+  '16': { x: 80, y: 400 },  // Barrio Sur
+  '17': { x: 240, y: 400 }, // Universidad Sur
+  '18': { x: 400, y: 400 }, // Parque Sur
+  '19': { x: 560, y: 400 }, // Comisaría
+  '20': { x: 720, y: 400 }, // Parque Industrial
+
+  '21': { x: 80, y: 500 },  // Puente Viejo
+  '22': { x: 240, y: 500 }, // Mercado Sur
+  '23': { x: 400, y: 500 }, // Biblioteca Sur
+  '24': { x: 560, y: 500 }, // Centro Cívico
+  '25': { x: 720, y: 500 }, // Terminal Sur
+};
 
 export const mapColors = {
   background: '#c0d9e8',
