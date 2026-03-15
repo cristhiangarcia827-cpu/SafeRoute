@@ -7,6 +7,7 @@ import {
   Modal,
   FlatList,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +26,8 @@ const RouteScreen: React.FC = () => {
   const [origenModal, setOrigenModal] = useState(false);
   const [destinoModal, setDestinoModal] = useState(false);
   const [mensajeError, setMensajeError] = useState('');
+  const [busquedaOrigen, setBusquedaOrigen] = useState('');
+  const [busquedaDestino, setBusquedaDestino] = useState('');
 
   const lugaresOptions = getLugaresOptions();
 
@@ -39,35 +42,20 @@ const RouteScreen: React.FC = () => {
       return;
     }
 
-    // Obtener todos los reportes
     const reports = AlertService.getAllReports();
-
-    // Extraer los nombres de lugares con reportes
     const lugaresConReportes = reports.map(r => r.lugar);
-
-    // Convertir esos nombres a IDs
     const idsProhibidos = new Set<string>();
     lugaresConReportes.forEach(nombre => {
       const id = nombreToId[nombre];
-      if (id) {
-        idsProhibidos.add(id);
-      }
+      if (id) idsProhibidos.add(id);
     });
-
-    // Eliminar origen y destino de los prohibidos
     idsProhibidos.delete(origen);
     idsProhibidos.delete(destino);
 
-    // Buscar ruta evitando los lugares prohibidos
     const ruta = cityGraph.encontrarRutaEvitando(origen, destino, idsProhibidos);
 
     if (ruta) {
-      // Navegar a la pestaña Inicio pasando los datos de la ruta
-      navigation.navigate('Inicio', {
-        origen,
-        destino,
-        ruta,
-      });
+      navigation.navigate('Inicio', { origen, destino, ruta });
     } else {
       setMensajeError('No se encontró una ruta segura que evite las zonas peligrosas');
     }
@@ -79,26 +67,35 @@ const RouteScreen: React.FC = () => {
     setMensajeError('');
   };
 
-  const renderLugarItem = ({ item }: { item: { label: string; value: string } }) => (
+  const getNombreLugar = (id: string) => {
+    return lugares.find((l) => l.id === id)?.nombre || id;
+  };
+
+  // Filtrado de opciones según búsqueda
+  const opcionesFiltradasOrigen = lugaresOptions.filter(op =>
+    op.label.toLowerCase().includes(busquedaOrigen.toLowerCase())
+  );
+  const opcionesFiltradasDestino = lugaresOptions.filter(op =>
+    op.label.toLowerCase().includes(busquedaDestino.toLowerCase())
+  );
+
+  const renderLugarItem = (
+    item: { label: string; value: string },
+    setter: (value: string) => void,
+    modalSetter: (value: boolean) => void,
+    searchSetter: (value: string) => void
+  ) => (
     <TouchableOpacity
       style={styles.modalItem}
       onPress={() => {
-        if (origenModal) {
-          setOrigen(item.value);
-          setOrigenModal(false);
-        } else if (destinoModal) {
-          setDestino(item.value);
-          setDestinoModal(false);
-        }
+        setter(item.value);
+        modalSetter(false);
+        searchSetter('');
       }}
     >
       <Text style={styles.modalItemText}>{item.label}</Text>
     </TouchableOpacity>
   );
-
-  const getNombreLugar = (id: string) => {
-    return lugares.find((l) => l.id === id)?.nombre || id;
-  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -111,7 +108,7 @@ const RouteScreen: React.FC = () => {
           style={styles.selectButton}
           onPress={() => {
             setOrigenModal(true);
-            setDestinoModal(false);
+            setBusquedaOrigen('');
           }}
         >
           <Text style={styles.selectButtonText}>
@@ -126,7 +123,7 @@ const RouteScreen: React.FC = () => {
           style={styles.selectButton}
           onPress={() => {
             setDestinoModal(true);
-            setOrigenModal(false);
+            setBusquedaDestino('');
           }}
         >
           <Text style={styles.selectButtonText}>
@@ -135,30 +132,77 @@ const RouteScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Modal para seleccionar origen */}
       <Modal
         animationType="slide"
         transparent={true}
-        visible={origenModal || destinoModal}
+        visible={origenModal}
         onRequestClose={() => {
           setOrigenModal(false);
-          setDestinoModal(false);
+          setBusquedaOrigen('');
         }}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Seleccionar {origenModal ? 'origen' : 'destino'}
-            </Text>
+            <Text style={styles.modalTitle}>Seleccionar origen</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar lugar..."
+              value={busquedaOrigen}
+              onChangeText={setBusquedaOrigen}
+              autoFocus
+            />
             <FlatList
-              data={lugaresOptions}
+              data={opcionesFiltradasOrigen}
               keyExtractor={(item) => item.value}
-              renderItem={renderLugarItem}
+              renderItem={({ item }) => renderLugarItem(item, setOrigen, setOrigenModal, setBusquedaOrigen)}
+              style={styles.modalList}
+              keyboardShouldPersistTaps="handled"
             />
             <CustomButton
               title="Cancelar"
               onPress={() => {
                 setOrigenModal(false);
+                setBusquedaOrigen('');
+              }}
+              variant="secondary"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para seleccionar destino */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={destinoModal}
+        onRequestClose={() => {
+          setDestinoModal(false);
+          setBusquedaDestino('');
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar destino</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar lugar..."
+              value={busquedaDestino}
+              onChangeText={setBusquedaDestino}
+              autoFocus
+            />
+            <FlatList
+              data={opcionesFiltradasDestino}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => renderLugarItem(item, setDestino, setDestinoModal, setBusquedaDestino)}
+              style={styles.modalList}
+              keyboardShouldPersistTaps="handled"
+            />
+            <CustomButton
+              title="Cancelar"
+              onPress={() => {
                 setDestinoModal(false);
+                setBusquedaDestino('');
               }}
               variant="secondary"
             />
@@ -265,6 +309,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  searchInput: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    fontSize: 16,
+  },
+  modalList: {
+    maxHeight: 300,
   },
   modalItem: {
     padding: 15,

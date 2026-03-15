@@ -11,40 +11,57 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
 import AlertService from '../services/AlertService';
 import { IncidenteType } from '../models/Report';
 import { lugares, getLugaresOptions } from '../utils/routesData';
 
-type ReportScreenNavigationProp = StackNavigationProp<TabParamList, 'Reportar'>;
+type ReportScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Reportar'>;
 
 const ReportScreen: React.FC = () => {
   const navigation = useNavigation<ReportScreenNavigationProp>();
 
-  const [lugar, setLugar] = useState<string>(''); // Guardamos el ID del lugar
-  const [tipoIncidente, setTipoIncidente] = useState<IncidenteType>('Robo');
+  const [lugar, setLugar] = useState<string>('');
+  const [tipoIncidente, setTipoIncidente] = useState<IncidenteType | string>('Robo');
   const [descripcion, setDescripcion] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [lugarModalVisible, setLugarModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [otroTexto, setOtroTexto] = useState('');
 
-  const incidentes: IncidenteType[] = ['Robo', 'Asalto', 'Acoso', 'Zona Oscura', 'Otro'];
+  const incidentes: (IncidenteType | 'Otro')[] = ['Robo', 'Asalto', 'Acoso', 'Zona Oscura', 'Otro'];
   const lugaresOptions = getLugaresOptions();
 
+  const filteredOptions = lugaresOptions.filter(opt =>
+    opt.label.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   const handleSubmit = () => {
-    if (!lugar || !descripcion.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+    if (!lugar) {
+      Alert.alert('Error', 'Selecciona un lugar');
+      return;
+    }
+    if (!descripcion.trim()) {
+      Alert.alert('Error', 'Escribe una descripción');
       return;
     }
 
     const lugarSeleccionado = lugares.find(l => l.id === lugar);
     const nombreLugar = lugarSeleccionado ? lugarSeleccionado.nombre : 'Desconocido';
 
+    // Determinar el tipo final
+    const tipoFinal = tipoIncidente === 'Otro' ? otroTexto.trim() : tipoIncidente;
+    if (tipoIncidente === 'Otro' && !tipoFinal) {
+      Alert.alert('Error', 'Especifica el tipo de incidente');
+      return;
+    }
+
     const newReport = {
       id: Date.now().toString(),
       lugar: nombreLugar,
-      tipoIncidente,
+      tipoIncidente: tipoFinal,
       descripcion: descripcion.trim(),
       fecha: new Date().toLocaleDateString(),
     };
@@ -63,25 +80,15 @@ const ReportScreen: React.FC = () => {
           text: 'Nuevo reporte',
           onPress: () => {
             setLugar('');
+            setTipoIncidente('Robo');
             setDescripcion('');
+            setOtroTexto('');
           },
           style: 'cancel',
         },
       ]
     );
   };
-
-  const renderLugarItem = ({ item }: { item: { label: string; value: string } }) => (
-    <TouchableOpacity
-      style={styles.modalItem}
-      onPress={() => {
-        setLugar(item.value);
-        setLugarModalVisible(false);
-      }}
-    >
-      <Text style={styles.modalItemText}>{item.label}</Text>
-    </TouchableOpacity>
-  );
 
   const getNombreLugar = (id: string) => {
     return lugares.find(l => l.id === id)?.nombre || 'Seleccionar lugar';
@@ -92,30 +99,63 @@ const ReportScreen: React.FC = () => {
       <Text style={styles.label}>Lugar del incidente *</Text>
       <TouchableOpacity
         style={styles.selectButton}
-        onPress={() => setLugarModalVisible(true)}
+        onPress={() => {
+          setLugarModalVisible(true);
+          setSearchText('');
+        }}
       >
         <Text style={styles.selectButtonText}>
           {lugar ? getNombreLugar(lugar) : 'Seleccionar lugar'}
         </Text>
       </TouchableOpacity>
 
+      {/* Modal para seleccionar lugar con buscador */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={lugarModalVisible}
-        onRequestClose={() => setLugarModalVisible(false)}
+        onRequestClose={() => {
+          setLugarModalVisible(false);
+          setSearchText('');
+        }}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Selecciona el lugar</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar lugar..."
+              value={searchText}
+              onChangeText={setSearchText}
+              autoFocus={true}
+            />
             <FlatList
-              data={lugaresOptions}
+              data={filteredOptions}
               keyExtractor={(item) => item.value}
-              renderItem={renderLugarItem}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setLugar(item.value);
+                    setLugarModalVisible(false);
+                    setSearchText('');
+                  }}
+                >
+                  <Text style={styles.modalItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+              style={styles.list}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No se encontraron lugares</Text>
+              }
             />
             <CustomButton
               title="Cancelar"
-              onPress={() => setLugarModalVisible(false)}
+              onPress={() => {
+                setLugarModalVisible(false);
+                setSearchText('');
+              }}
               variant="secondary"
             />
           </View>
@@ -127,9 +167,12 @@ const ReportScreen: React.FC = () => {
         style={styles.selectButton}
         onPress={() => setModalVisible(true)}
       >
-        <Text style={styles.selectButtonText}>{tipoIncidente}</Text>
+        <Text style={styles.selectButtonText}>
+          {tipoIncidente === 'Otro' && otroTexto ? otroTexto : tipoIncidente}
+        </Text>
       </TouchableOpacity>
 
+      {/* Modal para tipo de incidente */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -146,6 +189,9 @@ const ReportScreen: React.FC = () => {
                 onPress={() => {
                   setTipoIncidente(incidente);
                   setModalVisible(false);
+                  if (incidente !== 'Otro') {
+                    setOtroTexto('');
+                  }
                 }}
               >
                 <Text style={styles.modalItemText}>{incidente}</Text>
@@ -159,6 +205,18 @@ const ReportScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {tipoIncidente === 'Otro' && (
+        <View style={styles.otroContainer}>
+          <Text style={styles.label}>Especifica el tipo *</Text>
+          <TextInput
+            style={styles.input}
+            value={otroTexto}
+            onChangeText={setOtroTexto}
+            placeholder="Ej: Vandalismo, Riña, etc."
+          />
+        </View>
+      )}
 
       <Text style={styles.label}>Descripción *</Text>
       <TextInput
@@ -245,6 +303,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
   },
+  searchInput: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 15,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  list: {
+    maxHeight: 300,
+  },
   modalItem: {
     padding: 15,
     borderBottomWidth: 1,
@@ -253,6 +323,14 @@ const styles = StyleSheet.create({
   modalItemText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#999',
+  },
+  otroContainer: {
+    marginBottom: 20,
   },
 });
 
