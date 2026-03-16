@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Alert,
   Modal,
@@ -17,6 +16,7 @@ import CustomButton from '../components/CustomButton';
 import AlertService from '../services/AlertService';
 import { IncidenteType } from '../models/Report';
 import { lugares, getLugaresOptions } from '../utils/routesData';
+import { commonStyles, routeReportStyles } from '../styles/screenStyles';
 
 type ReportScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Reportar'>;
 
@@ -33,7 +33,6 @@ const ReportScreen: React.FC = () => {
 
   const incidentes: (IncidenteType | 'Otro')[] = ['Robo', 'Asalto', 'Acoso', 'Zona Oscura', 'Otro'];
   const lugaresOptions = getLugaresOptions();
-
   const filteredOptions = lugaresOptions.filter(opt =>
     opt.label.toLowerCase().includes(searchText.toLowerCase())
   );
@@ -51,7 +50,6 @@ const ReportScreen: React.FC = () => {
     const lugarSeleccionado = lugares.find(l => l.id === lugar);
     const nombreLugar = lugarSeleccionado ? lugarSeleccionado.nombre : 'Desconocido';
 
-    // Determinar el tipo final
     const tipoFinal = tipoIncidente === 'Otro' ? otroTexto.trim() : tipoIncidente;
     if (tipoIncidente === 'Otro' && !tipoFinal) {
       Alert.alert('Error', 'Especifica el tipo de incidente');
@@ -95,21 +93,20 @@ const ReportScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Lugar del incidente *</Text>
+    <ScrollView contentContainerStyle={routeReportStyles.container}>
+      <Text style={commonStyles.label}>Lugar del incidente *</Text>
       <TouchableOpacity
-        style={styles.selectButton}
+        style={commonStyles.selectButton}
         onPress={() => {
           setLugarModalVisible(true);
           setSearchText('');
         }}
       >
-        <Text style={styles.selectButtonText}>
+        <Text style={commonStyles.selectButtonText}>
           {lugar ? getNombreLugar(lugar) : 'Seleccionar lugar'}
         </Text>
       </TouchableOpacity>
 
-      {/* Modal para seleccionar lugar con buscador */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -119,11 +116,11 @@ const ReportScreen: React.FC = () => {
           setSearchText('');
         }}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Selecciona el lugar</Text>
+        <View style={commonStyles.modalContainer}>
+          <View style={commonStyles.modalContent}>
+            <Text style={commonStyles.modalTitle}>Selecciona el lugar</Text>
             <TextInput
-              style={styles.searchInput}
+              style={commonStyles.searchInput}
               placeholder="Buscar lugar..."
               value={searchText}
               onChangeText={setSearchText}
@@ -134,20 +131,20 @@ const ReportScreen: React.FC = () => {
               keyExtractor={(item) => item.value}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.modalItem}
+                  style={commonStyles.modalItem}
                   onPress={() => {
                     setLugar(item.value);
                     setLugarModalVisible(false);
                     setSearchText('');
                   }}
                 >
-                  <Text style={styles.modalItemText}>{item.label}</Text>
+                  <Text style={commonStyles.modalItemText}>{item.label}</Text>
                 </TouchableOpacity>
               )}
-              style={styles.list}
+              style={commonStyles.list}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
-                <Text style={styles.emptyText}>No se encontraron lugares</Text>
+                <Text style={commonStyles.emptyText}>No se encontraron lugares</Text>
               }
             />
             <CustomButton
@@ -162,39 +159,36 @@ const ReportScreen: React.FC = () => {
         </View>
       </Modal>
 
-      <Text style={styles.label}>Tipo de incidente *</Text>
+      <Text style={commonStyles.label}>Tipo de incidente *</Text>
       <TouchableOpacity
-        style={styles.selectButton}
+        style={commonStyles.selectButton}
         onPress={() => setModalVisible(true)}
       >
-        <Text style={styles.selectButtonText}>
+        <Text style={commonStyles.selectButtonText}>
           {tipoIncidente === 'Otro' && otroTexto ? otroTexto : tipoIncidente}
         </Text>
       </TouchableOpacity>
 
-      {/* Modal para tipo de incidente */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Selecciona el tipo de incidente</Text>
+        <View style={commonStyles.modalContainer}>
+          <View style={commonStyles.modalContent}>
+            <Text style={commonStyles.modalTitle}>Selecciona el tipo de incidente</Text>
             {incidentes.map((incidente) => (
               <TouchableOpacity
                 key={incidente}
-                style={styles.modalItem}
+                style={commonStyles.modalItem}
                 onPress={() => {
                   setTipoIncidente(incidente);
                   setModalVisible(false);
-                  if (incidente !== 'Otro') {
-                    setOtroTexto('');
-                  }
+                  if (incidente !== 'Otro') setOtroTexto('');
                 }}
               >
-                <Text style={styles.modalItemText}>{incidente}</Text>
+                <Text style={commonStyles.modalItemText}>{incidente}</Text>
               </TouchableOpacity>
             ))}
             <CustomButton
@@ -207,20 +201,20 @@ const ReportScreen: React.FC = () => {
       </Modal>
 
       {tipoIncidente === 'Otro' && (
-        <View style={styles.otroContainer}>
-          <Text style={styles.label}>Especifica el tipo *</Text>
+        <View>
+          <Text style={commonStyles.label}>Especifica el tipo *</Text>
           <TextInput
-            style={styles.input}
+            style={commonStyles.input}
             value={otroTexto}
             onChangeText={setOtroTexto}
-            placeholder="Ej: Vandalismo, Riña, etc."
+            placeholder="Ej: Vandalismo, etc."
           />
         </View>
       )}
 
-      <Text style={styles.label}>Descripción *</Text>
+      <Text style={commonStyles.label}>Descripción *</Text>
       <TextInput
-        style={[styles.input, styles.textArea]}
+        style={[commonStyles.input, commonStyles.textArea]}
         value={descripcion}
         onChangeText={setDescripcion}
         placeholder="Describe lo sucedido..."
@@ -233,105 +227,17 @@ const ReportScreen: React.FC = () => {
         title="Guardar Reporte"
         onPress={handleSubmit}
         variant="primary"
-        style={styles.button}
+        style={commonStyles.button}
       />
 
       <CustomButton
         title="Cancelar"
         onPress={() => navigation.goBack()}
         variant="secondary"
-        style={styles.button}
+        style={commonStyles.button}
       />
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#F5F5F5',
-    padding: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 5,
-    color: '#333',
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  textArea: {
-    height: 100,
-  },
-  button: {
-    marginVertical: 10,
-  },
-  selectButton: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  selectButtonText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    width: '80%',
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  searchInput: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  list: {
-    maxHeight: 300,
-  },
-  modalItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalItemText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    padding: 20,
-    color: '#999',
-  },
-  otroContainer: {
-    marginBottom: 20,
-  },
-});
 
 export default ReportScreen;

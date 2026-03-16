@@ -20,6 +20,7 @@ import {
   callesVerticales,
   mapColors,
 } from '../utils/mapData';
+import { commonStyles, homeStyles } from '../styles/screenStyles';
 
 type HomeScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Inicio'>;
 type HomeScreenRouteProp = RouteProp<TabParamList, 'Inicio'>;
@@ -61,58 +62,51 @@ const HomeScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={commonStyles.container}>
       <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={commonStyles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>SafeRoute</Text>
-        <Text style={styles.subtitle}>Mapa de la ciudad (desliza en ambas direcciones)</Text>
+        <Text style={commonStyles.title}>SafeRoute</Text>
+        <Text style={commonStyles.subtitle}>Mapa de la ciudad (desliza en ambas direcciones)</Text>
 
-        {/* Viewport del mapa con anidamiento de ScrollViews */}
-        <View style={[styles.mapViewport, { width: MAP_VISIBLE_WIDTH, height: MAP_VISIBLE_HEIGHT }]}>
-          {/* Scroll horizontal principal */}
+        <View style={[homeStyles.mapViewport, { width: MAP_VISIBLE_WIDTH, height: MAP_VISIBLE_HEIGHT }]}>
           <ScrollView
             horizontal={true}
             showsHorizontalScrollIndicator={true}
             nestedScrollEnabled={true}
           >
-            {/* Scroll vertical interno */}
             <ScrollView
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
               contentContainerStyle={{ width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }}
             >
-              <View style={[styles.mapContent, { width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }]}>
-                {/* Fondo de ciudad */}
-                <View style={[styles.cityBackground, { backgroundColor: mapColors.background }]}>
-                  {/* Calles horizontales */}
+              <View style={[homeStyles.mapContent, { width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }]}>
+                <View style={[homeStyles.cityBackground, { backgroundColor: mapColors.background }]}>
                   {callesHorizontales.map((y, index) => (
                     <View
                       key={`h-${index}`}
                       style={[
-                        styles.calleHorizontal,
+                        homeStyles.calleHorizontal,
                         { top: y, width: MAP_CONTENT_WIDTH, backgroundColor: mapColors.calle },
                       ]}
                     />
                   ))}
-                  {/* Calles verticales */}
                   {callesVerticales.map((x, index) => (
                     <View
                       key={`v-${index}`}
                       style={[
-                        styles.calleVertical,
+                        homeStyles.calleVertical,
                         { left: x, height: MAP_CONTENT_HEIGHT, backgroundColor: mapColors.calle },
                       ]}
                     />
                   ))}
-                  {/* Manzanas */}
                   {callesHorizontales.slice(0, -1).map((y, i) =>
                     callesVerticales.slice(0, -1).map((x, j) => (
                       <View
                         key={`block-${i}-${j}`}
                         style={[
-                          styles.manzana,
+                          homeStyles.manzana,
                           {
                             left: x + 2,
                             top: y + 2,
@@ -127,7 +121,6 @@ const HomeScreen: React.FC = () => {
                   )}
                 </View>
 
-                {/* Líneas de conexiones */}
                 {conexiones.map((conn) => {
                   const desde = nodePositions[conn.desde];
                   const hasta = nodePositions[conn.hasta];
@@ -147,7 +140,7 @@ const HomeScreen: React.FC = () => {
                       <View
                         key={baseKey}
                         style={[
-                          styles.line,
+                          homeStyles.line,
                           {
                             left: x1,
                             top: desde.y,
@@ -168,7 +161,7 @@ const HomeScreen: React.FC = () => {
                       <View
                         key={baseKey}
                         style={[
-                          styles.line,
+                          homeStyles.line,
                           {
                             left: desde.x,
                             top: y1,
@@ -198,7 +191,7 @@ const HomeScreen: React.FC = () => {
                     <React.Fragment key={baseKey}>
                       <View
                         style={[
-                          styles.line,
+                          homeStyles.line,
                           {
                             left: xHorIzq,
                             top: intermedioY,
@@ -211,7 +204,7 @@ const HomeScreen: React.FC = () => {
                       />
                       <View
                         style={[
-                          styles.line,
+                          homeStyles.line,
                           {
                             left: intermedioX,
                             top: yVerSup,
@@ -227,7 +220,6 @@ const HomeScreen: React.FC = () => {
                   );
                 })}
 
-                {/* Marcadores de lugares */}
                 {lugares.map((lugar) => {
                   const pos = nodePositions[lugar.id];
                   if (!pos) return null;
@@ -244,15 +236,15 @@ const HomeScreen: React.FC = () => {
                     <View
                       key={lugar.id}
                       style={[
-                        styles.marker,
+                        homeStyles.marker,
                         {
                           left: pos.x - 15,
                           top: pos.y - 15,
                         },
                       ]}
                     >
-                      <View style={[styles.markerDot, { backgroundColor }]} />
-                      <Text style={styles.markerLabel}>{lugar.nombre}</Text>
+                      <View style={[homeStyles.markerDot, { backgroundColor }]} />
+                      <Text style={homeStyles.markerLabel}>{lugar.nombre}</Text>
                     </View>
                   );
                 })}
@@ -262,20 +254,20 @@ const HomeScreen: React.FC = () => {
         </View>
 
         {rutaActual && (
-          <View style={styles.routeInfo}>
-            <Text style={styles.routeTitle}>🛣️ Ruta segura:</Text>
-            <Text style={styles.routePath}>
+          <View style={homeStyles.routeInfo}>
+            <Text style={homeStyles.routeTitle}>🛣️ Ruta segura:</Text>
+            <Text style={homeStyles.routePath}>
               {rutaActual.map((id) => lugares.find((l) => l.id === id)?.nombre).join(' → ')}
             </Text>
-            <TouchableOpacity onPress={limpiarRuta} style={styles.clearButton}>
-              <Text style={styles.clearButtonText}>Limpiar ruta</Text>
+            <TouchableOpacity onPress={limpiarRuta} style={homeStyles.clearButton}>
+              <Text style={homeStyles.clearButtonText}>Limpiar ruta</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {!rutaActual && (
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>
+          <View style={commonStyles.infoContainer}>
+            <Text style={commonStyles.infoText}>
               Ve a la pestaña "Ruta" para encontrar caminos seguros evitando zonas peligrosas.
             </Text>
           </View>
@@ -284,132 +276,5 @@ const HomeScreen: React.FC = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-  },
-  scrollContainer: {
-    paddingBottom: 30,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginTop: 20,
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  },
-  mapViewport: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  mapContent: {
-    position: 'relative',
-    backgroundColor: '#e0e0e0',
-  },
-  cityBackground: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  calleHorizontal: {
-    position: 'absolute',
-    height: 4,
-    left: 0,
-  },
-  calleVertical: {
-    position: 'absolute',
-    width: 4,
-    top: 0,
-  },
-  manzana: {
-    position: 'absolute',
-    borderWidth: 1,
-  },
-  line: {
-    position: 'absolute',
-    transformOrigin: 'top left',
-    zIndex: 5,
-  },
-  marker: {
-    position: 'absolute',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  markerDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 4,
-  },
-  markerLabel: {
-    fontSize: 10,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 2,
-    color: '#333',
-    fontWeight: '600',
-  },
-  routeInfo: {
-    backgroundColor: '#E8F5E9',
-    padding: 15,
-    marginTop: 20,
-    borderRadius: 8,
-    width: MAP_VISIBLE_WIDTH,
-  },
-  routeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    marginBottom: 5,
-  },
-  routePath: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 10,
-  },
-  clearButton: {
-    alignSelf: 'flex-end',
-  },
-  clearButtonText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  infoContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    marginTop: 20,
-    borderRadius: 8,
-    width: MAP_VISIBLE_WIDTH,
-    alignItems: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
 
 export default HomeScreen;
