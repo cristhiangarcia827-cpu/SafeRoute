@@ -18,31 +18,8 @@ class AlertService {
   }
 
   private initMockData(): void {
-    //Reportes de ejemplo
     const mockReports: Report[] = [
-      {
-        id: '1',
-        lugar: 'Parque Central',
-        tipoIncidente: 'Robo',
-        descripcion: 'Robo a transeúntes en horas de la noche',
-        fecha: new Date().toLocaleDateString()
-      },
-      {
-        id: '2',
-        lugar: 'Calle 50',
-        tipoIncidente: 'Zona Oscura',
-        descripcion: 'Falta de iluminación en toda la calle',
-        fecha: new Date().toLocaleDateString()
-      },
-      {
-        id: '3',
-        lugar: 'Universidad',
-        tipoIncidente: 'Acoso',
-        descripcion: 'Reportes de acoso en paraderos cercanos',
-        fecha: new Date().toLocaleDateString()
-      }
     ];
-
     mockReports.forEach(report => this.reportsList.append(report));
   }
 
