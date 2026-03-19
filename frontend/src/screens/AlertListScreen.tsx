@@ -10,17 +10,24 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import AlertItem from '../components/AlertItem';
 import CustomButton from '../components/CustomButton';
-import AlertService from '../services/AlertService';
+import ReportService from '../services/ReportService'; 
 import { Report } from '../models/Report';
-import { commonStyles, alertListStyles } from '../styles/screenStyles';
 
 const AlertListScreen: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const loadReports = () => {
-    const allReports = AlertService.getAllReports();
-    setReports(allReports);
+  const loadReports = async () => {
+    setLoading(true);
+    try {
+      const allReports = await ReportService.getAllReports();
+      setReports(allReports);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudieron cargar los reportes');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useFocusEffect(
@@ -29,9 +36,9 @@ const AlertListScreen: React.FC = () => {
     }, [])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadReports();
+    await loadReports();
     setRefreshing(false);
   };
 
@@ -44,9 +51,13 @@ const AlertListScreen: React.FC = () => {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            AlertService.deleteReport(id);
-            loadReports();
+          onPress: async () => {
+            try {
+              await ReportService.deleteReport(id);
+              await loadReports();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo eliminar el reporte');
+            }
           },
         },
       ]
@@ -64,20 +75,37 @@ const AlertListScreen: React.FC = () => {
         {
           text: 'Eliminar todos',
           style: 'destructive',
-          onPress: () => {
-            reports.forEach(report => AlertService.deleteReport(report.id));
-            loadReports();
+          onPress: async () => {
+            try {
+              // Eliminar uno por uno
+              for (const report of reports) {
+                if (report.id) {
+                  await ReportService.deleteReport(report.id);
+                }
+              }
+              await loadReports();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudieron eliminar los reportes');
+            }
           },
         },
       ]
     );
   };
 
+  if (loading && reports.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Cargando reportes...</Text>
+      </View>
+    );
+  }
+
   if (reports.length === 0) {
     return (
-      <View style={alertListStyles.emptyContainer}>
-        <Text style={alertListStyles.emptyText}>No hay reportes disponibles</Text>
-        <Text style={alertListStyles.emptySubtext}>
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No hay reportes disponibles</Text>
+        <Text style={styles.emptySubtext}>
           Los reportes que agregues aparecerán aquí
         </Text>
       </View>
@@ -85,33 +113,83 @@ const AlertListScreen: React.FC = () => {
   }
 
   return (
-    <View style={commonStyles.container}>
-      <View style={alertListStyles.header}>
-        <Text style={alertListStyles.title}>Alertas Reportadas ({reports.length})</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Alertas Reportadas ({reports.length})</Text>
         {reports.length > 0 && (
           <CustomButton
             title="Eliminar todos"
             onPress={handleDeleteAll}
             variant="danger"
-            style={alertListStyles.deleteAllButton}
-            textStyle={alertListStyles.deleteAllText}
+            style={styles.deleteAllButton}
+            textStyle={styles.deleteAllText}
           />
         )}
       </View>
 
       <FlatList
         data={reports}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || Math.random().toString()}
         renderItem={({ item }) => (
           <AlertItem report={item} onDelete={handleDelete} />
         )}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={alertListStyles.listContent}
+        contentContainerStyle={styles.listContent}
       />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  deleteAllButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FF3B30',
+  },
+  deleteAllText: {
+    fontSize: 14,
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+});
 
 export default AlertListScreen;
