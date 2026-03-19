@@ -1,0 +1,91 @@
+import React, { useState } from 'react';
+import { View, TextInput, FlatList, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import GoogleMapsService from '../services/GoogleMapsService'; // Importación por defecto
+import { Place } from '../models/Place'; // Modelo unificado
+
+interface PlaceAutocompleteProps {
+  onPlaceSelected: (place: Place) => void;
+  placeholder?: string;
+}
+
+const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({ onPlaceSelected, placeholder }) => {
+  const [query, setQuery] = useState('');
+  const [predictions, setPredictions] = useState<Place[]>([]);
+
+  const handleSearch = async (text: string) => {
+    setQuery(text);
+    if (text.length > 2) {
+      const results = await GoogleMapsService.searchPlaces(text);
+      setPredictions(results);
+    } else {
+      setPredictions([]);
+    }
+  };
+
+  const handleSelect = (place: Place) => {
+    onPlaceSelected(place);
+    setQuery('');
+    setPredictions([]);
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        value={query}
+        onChangeText={handleSearch}
+        placeholder={placeholder || 'Buscar lugar...'}
+      />
+      {predictions.length > 0 && (
+        <FlatList
+          data={predictions}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          renderItem={({ item }) => (
+            <TouchableOpacity onPress={() => handleSelect(item)} style={styles.item}>
+              <Text style={styles.mainText}>{item.name}</Text>
+              <Text style={styles.secondaryText}>{item.address}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 20,
+  },
+  input: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    fontSize: 16,
+  },
+  list: {
+    maxHeight: 200,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  item: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  mainText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  secondaryText: {
+    fontSize: 14,
+    color: '#666',
+  },
+});
+
+export default PlaceAutocomplete;

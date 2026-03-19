@@ -12,7 +12,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cristhian_garcia.SafeRoute",
+      "config": {
+        "googleMapsApiKey": "TU_API_KEY_DE_GOOGLE_MAPS"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SafeRoute necesita tu ubicación para mostrar rutas seguras."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +29,16 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.cristhian_garcia.SafeRoute"
+      "package": "com.cristhian_garcia.SafeRoute",
+      "config": {
+        "googleMaps": {
+          "apiKey": "TU_API_KEY_DE_GOOGLE_MAPS"
+        }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +47,20 @@
       "eas": {
         "projectId": "cc7d59e5-687f-4a88-a5af-fac44c675e69"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "SafeRoute necesita tu ubicación para mostrar rutas seguras."
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "apiKey": "TU_API_KEY_DE_GOOGLE_MAPS"
+        }
+      ]
+    ]
   }
 }

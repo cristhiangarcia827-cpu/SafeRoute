@@ -16,83 +16,88 @@ import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
 import ReportService from '../services/ReportService';
 import { IncidenteType } from '../models/Report';
-import { lugares, getLugaresOptions } from '../utils/routesData';
+import GoogleMapsService from '../services/GoogleMapsService';
+import { Place } from '../models/Place';
 
 type ReportScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Reportar'>;
 
 const ReportScreen: React.FC = () => {
   const navigation = useNavigation<ReportScreenNavigationProp>();
 
-  const [lugar, setLugar] = useState<string>('');
+  const [lugar, setLugar] = useState<Place | null>(null);
   const [tipoIncidente, setTipoIncidente] = useState<IncidenteType | string>('Robo');
   const [descripcion, setDescripcion] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [lugarModalVisible, setLugarModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [otroTexto, setOtroTexto] = useState('');
+  const [searchResults, setSearchResults] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
+  const [otroTexto, setOtroTexto] = useState('');
 
   const incidentes: (IncidenteType | 'Otro')[] = ['Robo', 'Asalto', 'Acoso', 'Zona Oscura', 'Otro'];
-  const lugaresOptions = getLugaresOptions();
 
-  const filteredOptions = lugaresOptions.filter(opt =>
-    opt.label.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const handleSearch = async (text: string) => {
+    setSearchText(text);
+    if (text.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    setLoading(true);
+    const results = await GoogleMapsService.searchPlaces(text);
+    setSearchResults(results);
+    setLoading(false);
+  };
 
-const handleSubmit = async () => {
-  if (!lugar) {
-    Alert.alert('Error', 'Selecciona un lugar');
-    return;
-  }
-  if (!descripcion.trim()) {
-    Alert.alert('Error', 'Escribe una descripción');
-    return;
-  }
+  const handleSubmit = async () => {
+    if (!lugar) {
+      Alert.alert('Error', 'Selecciona un lugar');
+      return;
+    }
+    if (!descripcion.trim()) {
+      Alert.alert('Error', 'Escribe una descripción');
+      return;
+    }
 
-  const lugarSeleccionado = lugares.find(l => l.id === lugar);
-  const nombreLugar = lugarSeleccionado ? lugarSeleccionado.nombre : 'Desconocido';
+    const tipoFinal = tipoIncidente === 'Otro' ? otroTexto.trim() : tipoIncidente;
+    if (tipoIncidente === 'Otro' && !tipoFinal) {
+      Alert.alert('Error', 'Especifica el tipo de incidente');
+      return;
+    }
 
-  const tipoFinal = tipoIncidente === 'Otro' ? otroTexto.trim() : tipoIncidente;
-  if (tipoIncidente === 'Otro' && !tipoFinal) {
-    Alert.alert('Error', 'Especifica el tipo de incidente');
-    return;
-  }
-
-  try {
-    await ReportService.addReport({
-      lugar: nombreLugar,
+    const newReport = {
+      lugar: lugar.name,
       tipoIncidente: tipoFinal,
       descripcion: descripcion.trim(),
-    });
+      fecha: new Date().toLocaleDateString(),
+      latitude: lugar.latitude,
+      longitude: lugar.longitude,
+    };
 
-    Alert.alert(
-      'Éxito',
-      'Reporte guardado correctamente',
-      [
-        {
-          text: 'Ver reportes',
-          onPress: () => navigation.navigate('Alertas'),
-        },
-        {
-          text: 'Nuevo reporte',
-          onPress: () => {
-            setLugar('');
-            setTipoIncidente('Robo');
-            setDescripcion('');
-            setOtroTexto('');
+    try {
+      await ReportService.addReport(newReport as any);
+      Alert.alert(
+        'Éxito',
+        'Reporte guardado correctamente',
+        [
+          {
+            text: 'Ver reportes',
+            onPress: () => navigation.navigate('Alertas'),
           },
-          style: 'cancel',
-        },
-      ]
-    );
-  } catch (error) {
-    console.error('Error al agregar reporte:', error);
-    Alert.alert('Error', 'No se pudo guardar el reporte');
-  }
-};
-
-  const getNombreLugar = (id: string) => {
-    return lugares.find(l => l.id === id)?.nombre || 'Seleccionar lugar';
+          {
+            text: 'Nuevo reporte',
+            onPress: () => {
+              setLugar(null);
+              setTipoIncidente('Robo');
+              setDescripcion('');
+              setOtroTexto('');
+            },
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo guardar el reporte');
+    }
   };
 
   return (
@@ -103,10 +108,11 @@ const handleSubmit = async () => {
         onPress={() => {
           setLugarModalVisible(true);
           setSearchText('');
+          setSearchResults([]);
         }}
       >
         <Text style={styles.selectButtonText}>
-          {lugar ? getNombreLugar(lugar) : 'Seleccionar lugar'}
+          {lugar ? lugar.name : 'Seleccionar lugar'}
         </Text>
       </TouchableOpacity>
 
@@ -118,37 +124,43 @@ const handleSubmit = async () => {
         onRequestClose={() => {
           setLugarModalVisible(false);
           setSearchText('');
+          setSearchResults([]);
         }}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Selecciona el lugar</Text>
+            <Text style={styles.modalTitle}>Buscar lugar</Text>
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar lugar..."
+              placeholder="Escribe el nombre del lugar..."
               value={searchText}
-              onChangeText={setSearchText}
+              onChangeText={handleSearch}
               autoFocus={true}
             />
+            {loading && <Text style={styles.loadingText}>Buscando...</Text>}
             <FlatList
-              data={filteredOptions}
-              keyExtractor={(item) => item.value}
+              data={searchResults}
+              keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.modalItem}
                   onPress={() => {
-                    setLugar(item.value);
+                    setLugar(item);
                     setLugarModalVisible(false);
                     setSearchText('');
+                    setSearchResults([]);
                   }}
                 >
-                  <Text style={styles.modalItemText}>{item.label}</Text>
+                  <Text style={styles.modalItemText}>{item.name}</Text>
+                  <Text style={styles.modalItemAddress}>{item.address}</Text>
                 </TouchableOpacity>
               )}
               style={styles.list}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
-                <Text style={styles.emptyText}>No se encontraron lugares</Text>
+                searchText.length >= 3 && !loading ? (
+                  <Text style={styles.emptyText}>No se encontraron lugares</Text>
+                ) : null
               }
             />
             <CustomButton
@@ -156,6 +168,7 @@ const handleSubmit = async () => {
               onPress={() => {
                 setLugarModalVisible(false);
                 setSearchText('');
+                setSearchResults([]);
               }}
               variant="secondary"
             />
@@ -173,7 +186,6 @@ const handleSubmit = async () => {
         </Text>
       </TouchableOpacity>
 
-      {/* Modal para tipo de incidente */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -207,7 +219,6 @@ const handleSubmit = async () => {
         </View>
       </Modal>
 
-      {/* Campo adicional si se selecciona "Otro" */}
       {tipoIncidente === 'Otro' && (
         <View style={styles.otroContainer}>
           <Text style={styles.label}>Especifica el tipo *</Text>
@@ -232,11 +243,10 @@ const handleSubmit = async () => {
       />
 
       <CustomButton
-        title={loading ? "Guardando..." : "Guardar Reporte"}
+        title="Guardar Reporte"
         onPress={handleSubmit}
         variant="primary"
         style={styles.button}
-        disabled={loading}
       />
 
       <CustomButton
@@ -244,7 +254,6 @@ const handleSubmit = async () => {
         onPress={() => navigation.goBack()}
         variant="secondary"
         style={styles.button}
-        disabled={loading}
       />
     </ScrollView>
   );
@@ -298,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
-    width: '80%',
+    width: '90%',
     maxHeight: '80%',
   },
   modalTitle: {
@@ -310,14 +319,19 @@ const styles = StyleSheet.create({
   searchInput: {
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
     marginBottom: 15,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
   },
+  loadingText: {
+    textAlign: 'center',
+    padding: 10,
+    color: '#666',
+  },
   list: {
-    maxHeight: 300,
+    maxHeight: 400,
   },
   modalItem: {
     padding: 15,
@@ -326,7 +340,12 @@ const styles = StyleSheet.create({
   },
   modalItemText: {
     fontSize: 16,
-    textAlign: 'center',
+    fontWeight: '500',
+  },
+  modalItemAddress: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   emptyText: {
     textAlign: 'center',

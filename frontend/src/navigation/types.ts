@@ -1,12 +1,13 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { RouteResult } from '../services/GoogleMapsService';
 
 export type TabParamList = {
   Inicio: {
-    origen?: string;
-    destino?: string;
-    ruta?: string[];
+    originCoords?: { latitude: number; longitude: number };
+    destCoords?: { latitude: number; longitude: number };
+    route?: RouteResult;
   } | undefined;
-  Ruta: undefined;          
+  Ruta: undefined;
   Reportar: undefined;
   Alertas: undefined;
 };

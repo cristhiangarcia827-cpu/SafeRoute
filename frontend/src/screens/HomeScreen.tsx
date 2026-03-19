@@ -1,274 +1,177 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Dimensions,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import { TabParamList } from '../navigation/types';
-import { lugares, conexiones } from '../utils/routesData';
-import {
-  MAP_VISIBLE_WIDTH,
-  MAP_VISIBLE_HEIGHT,
-  MAP_CONTENT_WIDTH,
-  MAP_CONTENT_HEIGHT,
-  nodePositions,
-  callesHorizontales,
-  callesVerticales,
-  mapColors,
-} from '../utils/mapData';
-import { commonStyles, homeStyles } from '../styles/screenStyles';
+import { Ionicons } from '@expo/vector-icons';
 
 type HomeScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Inicio'>;
 type HomeScreenRouteProp = RouteProp<TabParamList, 'Inicio'>;
 
+const { width } = Dimensions.get('window');
+
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const route = useRoute<HomeScreenRouteProp>();
+  const mapRef = useRef<MapView>(null);
 
-  const [origen, setOrigen] = useState<string | undefined>(route.params?.origen);
-  const [destino, setDestino] = useState<string | undefined>(route.params?.destino);
-  const [rutaActual, setRutaActual] = useState<string[] | undefined>(route.params?.ruta);
+  const [originCoords, setOriginCoords] = useState(route.params?.originCoords);
+  const [destCoords, setDestCoords] = useState(route.params?.destCoords);
+  const [routeData, setRouteData] = useState(route.params?.route);
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
+  // Solicitar permisos de ubicación al montar el componente
   useEffect(() => {
-    if (route.params?.ruta) {
-      setOrigen(route.params.origen);
-      setDestino(route.params.destino);
-      setRutaActual(route.params.ruta);
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(status === 'granted');
+      
+      if (status === 'granted') {
+        // Obtener ubicación actual
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      } else {
+        Alert.alert(
+          'Permiso denegado',
+          'No se puede mostrar tu ubicación en el mapa. Puedes seguir usando la app, pero la función de ubicación actual no estará disponible.'
+        );
+      }
+    })();
+  }, []);
+
+  // Efecto para centrar el mapa cuando llega una ruta nueva
+  useEffect(() => {
+    if (route.params?.route) {
+      setOriginCoords(route.params.originCoords);
+      setDestCoords(route.params.destCoords);
+      setRouteData(route.params.route);
+
+      if (route.params.originCoords && route.params.destCoords) {
+        const lat = (route.params.originCoords.latitude + route.params.destCoords.latitude) / 2;
+        const lng = (route.params.originCoords.longitude + route.params.destCoords.longitude) / 2;
+        const latDelta = Math.abs(route.params.originCoords.latitude - route.params.destCoords.latitude) * 1.5;
+        const lngDelta = Math.abs(route.params.originCoords.longitude - route.params.destCoords.longitude) * 1.5;
+
+        mapRef.current?.animateToRegion({
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: Math.max(latDelta, 0.5),
+          longitudeDelta: Math.max(lngDelta, 0.5),
+        });
+      }
     }
   }, [route.params]);
 
-  const esParteDeRuta = (desdeId: string, hastaId: string): boolean => {
-    if (!rutaActual) return false;
-    for (let i = 0; i < rutaActual.length - 1; i++) {
-      if (
-        (rutaActual[i] === desdeId && rutaActual[i + 1] === hastaId) ||
-        (rutaActual[i] === hastaId && rutaActual[i + 1] === desdeId)
-      ) {
-        return true;
-      }
-    }
-    return false;
+  const limpiarRuta = () => {
+    setOriginCoords(undefined);
+    setDestCoords(undefined);
+    setRouteData(undefined);
+    navigation.setParams({ originCoords: undefined, destCoords: undefined, route: undefined });
   };
 
-  const limpiarRuta = () => {
-    setOrigen(undefined);
-    setDestino(undefined);
-    setRutaActual(undefined);
-    navigation.setParams({ origen: undefined, destino: undefined, ruta: undefined });
-  };
+  // Región inicial: si tenemos ubicación del usuario, centramos ahí; si no, una ubicación por defecto (Madrid)
+  const initialRegion: Region = userLocation
+    ? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }
+    : {
+        latitude: 40.416775,
+        longitude: -3.703790,
+        latitudeDelta: 10,
+        longitudeDelta: 10,
+      };
+
+  // Si aún estamos comprobando permisos, mostrar un indicador
+  if (locationPermission === null) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Verificando permisos de ubicación...</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={commonStyles.container}>
-      <ScrollView 
-        contentContainerStyle={commonStyles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={commonStyles.title}>SafeRoute</Text>
-        <Text style={commonStyles.subtitle}>Mapa de la ciudad (desliza en ambas direcciones)</Text>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Text style={styles.title}>SafeRoute</Text>
+        <Text style={styles.subtitle}>Mapa de rutas seguras</Text>
 
-        <View style={[homeStyles.mapViewport, { width: MAP_VISIBLE_WIDTH, height: MAP_VISIBLE_HEIGHT }]}>
-          <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={true}
-            nestedScrollEnabled={true}
+        <View style={styles.mapContainer}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={initialRegion}
+            showsUserLocation={locationPermission === true}
+            showsMyLocationButton={locationPermission === true}
+            showsCompass={true}
+            showsScale={true}
           >
-            <ScrollView
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              contentContainerStyle={{ width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }}
-            >
-              <View style={[homeStyles.mapContent, { width: MAP_CONTENT_WIDTH, height: MAP_CONTENT_HEIGHT }]}>
-                <View style={[homeStyles.cityBackground, { backgroundColor: mapColors.background }]}>
-                  {callesHorizontales.map((y, index) => (
-                    <View
-                      key={`h-${index}`}
-                      style={[
-                        homeStyles.calleHorizontal,
-                        { top: y, width: MAP_CONTENT_WIDTH, backgroundColor: mapColors.calle },
-                      ]}
-                    />
-                  ))}
-                  {callesVerticales.map((x, index) => (
-                    <View
-                      key={`v-${index}`}
-                      style={[
-                        homeStyles.calleVertical,
-                        { left: x, height: MAP_CONTENT_HEIGHT, backgroundColor: mapColors.calle },
-                      ]}
-                    />
-                  ))}
-                  {callesHorizontales.slice(0, -1).map((y, i) =>
-                    callesVerticales.slice(0, -1).map((x, j) => (
-                      <View
-                        key={`block-${i}-${j}`}
-                        style={[
-                          homeStyles.manzana,
-                          {
-                            left: x + 2,
-                            top: y + 2,
-                            width: callesVerticales[j + 1] - x - 4,
-                            height: callesHorizontales[i + 1] - y - 4,
-                            backgroundColor: mapColors.manzana,
-                            borderColor: mapColors.bordeManzana,
-                          },
-                        ]}
-                      />
-                    ))
-                  )}
-                </View>
-
-                {conexiones.map((conn) => {
-                  const desde = nodePositions[conn.desde];
-                  const hasta = nodePositions[conn.hasta];
-                  if (!desde || !hasta) return null;
-
-                  const isInRoute = esParteDeRuta(conn.desde, conn.hasta);
-                  const color = isInRoute ? mapColors.lineaRuta : mapColors.lineaNormal;
-                  const opacity = isInRoute ? 1 : 0.4;
-                  const thickness = isInRoute ? 4 : 2;
-
-                  const baseKey = `conn-${conn.desde}-${conn.hasta}`;
-
-                  if (desde.y === hasta.y) {
-                    const x1 = Math.min(desde.x, hasta.x);
-                    const x2 = Math.max(desde.x, hasta.x);
-                    return (
-                      <View
-                        key={baseKey}
-                        style={[
-                          homeStyles.line,
-                          {
-                            left: x1,
-                            top: desde.y,
-                            width: x2 - x1,
-                            height: thickness,
-                            backgroundColor: color,
-                            opacity,
-                          },
-                        ]}
-                      />
-                    );
-                  }
-
-                  if (desde.x === hasta.x) {
-                    const y1 = Math.min(desde.y, hasta.y);
-                    const y2 = Math.max(desde.y, hasta.y);
-                    return (
-                      <View
-                        key={baseKey}
-                        style={[
-                          homeStyles.line,
-                          {
-                            left: desde.x,
-                            top: y1,
-                            width: y2 - y1,
-                            height: thickness,
-                            backgroundColor: color,
-                            opacity,
-                            transform: [{ rotate: '90deg' }],
-                          },
-                        ]}
-                      />
-                    );
-                  }
-
-                  const intermedioX = hasta.x;
-                  const intermedioY = desde.y;
-
-                  const xHorIzq = Math.min(desde.x, intermedioX);
-                  const xHorDer = Math.max(desde.x, intermedioX);
-                  const anchoHor = xHorDer - xHorIzq;
-
-                  const yVerSup = Math.min(intermedioY, hasta.y);
-                  const yVerInf = Math.max(intermedioY, hasta.y);
-                  const altoVer = yVerInf - yVerSup;
-
-                  return (
-                    <React.Fragment key={baseKey}>
-                      <View
-                        style={[
-                          homeStyles.line,
-                          {
-                            left: xHorIzq,
-                            top: intermedioY,
-                            width: anchoHor,
-                            height: thickness,
-                            backgroundColor: color,
-                            opacity,
-                          },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          homeStyles.line,
-                          {
-                            left: intermedioX,
-                            top: yVerSup,
-                            width: altoVer,
-                            height: thickness,
-                            backgroundColor: color,
-                            opacity,
-                            transform: [{ rotate: '90deg' }],
-                          },
-                        ]}
-                      />
-                    </React.Fragment>
-                  );
-                })}
-
-                {lugares.map((lugar) => {
-                  const pos = nodePositions[lugar.id];
-                  if (!pos) return null;
-                  const isInRoute = rutaActual?.includes(lugar.id);
-                  const isOrigen = origen === lugar.id;
-                  const isDestino = destino === lugar.id;
-
-                  let backgroundColor = mapColors.nodoNormal;
-                  if (isOrigen) backgroundColor = mapColors.nodoOrigen;
-                  else if (isDestino) backgroundColor = mapColors.nodoDestino;
-                  else if (isInRoute) backgroundColor = mapColors.nodoRuta;
-
-                  return (
-                    <View
-                      key={lugar.id}
-                      style={[
-                        homeStyles.marker,
-                        {
-                          left: pos.x - 15,
-                          top: pos.y - 15,
-                        },
-                      ]}
-                    >
-                      <View style={[homeStyles.markerDot, { backgroundColor }]} />
-                      <Text style={homeStyles.markerLabel}>{lugar.nombre}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </ScrollView>
-          </ScrollView>
+            {originCoords && (
+              <Marker
+                coordinate={originCoords}
+                title="Origen"
+                pinColor="green"
+              />
+            )}
+            {destCoords && (
+              <Marker
+                coordinate={destCoords}
+                title="Destino"
+                pinColor="red"
+              />
+            )}
+            {routeData && routeData.polyline && (
+              <Polyline
+                coordinates={routeData.polyline}
+                strokeColor="#4CAF50"
+                strokeWidth={4}
+              />
+            )}
+          </MapView>
+          {!locationPermission && (
+            <View style={styles.permissionWarning}>
+              <Text style={styles.permissionWarningText}>
+                Permiso de ubicación denegado. Actívalo en ajustes para ver tu posición.
+              </Text>
+            </View>
+          )}
         </View>
 
-        {rutaActual && (
-          <View style={homeStyles.routeInfo}>
-            <Text style={homeStyles.routeTitle}>🛣️ Ruta segura:</Text>
-            <Text style={homeStyles.routePath}>
-              {rutaActual.map((id) => lugares.find((l) => l.id === id)?.nombre).join(' → ')}
+        {routeData && (
+          <View style={styles.routeInfo}>
+            <Text style={styles.routeTitle}>🛣️ Ruta segura:</Text>
+            <Text style={styles.routePath}>
+              Distancia: {routeData.distance} | Duración: {routeData.duration}
             </Text>
-            <TouchableOpacity onPress={limpiarRuta} style={homeStyles.clearButton}>
-              <Text style={homeStyles.clearButtonText}>Limpiar ruta</Text>
+            <TouchableOpacity onPress={limpiarRuta} style={styles.clearButton}>
+              <Text style={styles.clearButtonText}>Limpiar ruta</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {!rutaActual && (
-          <View style={commonStyles.infoContainer}>
-            <Text style={commonStyles.infoText}>
-              Ve a la pestaña "Ruta" para encontrar caminos seguros evitando zonas peligrosas.
+        {!routeData && (
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoText}>
+              Ve a la pestaña "Ruta" para encontrar caminos seguros.
             </Text>
           </View>
         )}
@@ -276,5 +179,104 @@ const HomeScreen: React.FC = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  scrollContainer: {
+    paddingBottom: 30,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginTop: 20,
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  mapContainer: {
+    width: width - 40,
+    height: 500,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    position: 'relative',
+  },
+  map: {
+    flex: 1,
+  },
+  permissionWarning: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 193, 7, 0.9)',
+    padding: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  permissionWarningText: {
+    color: '#333',
+    fontSize: 12,
+  },
+  routeInfo: {
+    backgroundColor: '#E8F5E9',
+    padding: 15,
+    marginTop: 20,
+    borderRadius: 8,
+    width: width - 40,
+  },
+  routeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 5,
+  },
+  routePath: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 10,
+  },
+  clearButton: {
+    alignSelf: 'flex-end',
+  },
+  clearButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  infoContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginTop: 20,
+    borderRadius: 8,
+    width: width - 40,
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+});
 
 export default HomeScreen;

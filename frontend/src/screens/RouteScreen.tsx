@@ -14,26 +14,49 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
-import { cityGraph, getLugaresOptions, lugares, nombreToId } from '../utils/routesData';
-import ReportService from '../services/ReportService';  // Nuevo servicio
+import GoogleMapsService from '../services/GoogleMapsService';
+import { Place } from '../models/Place';
+import ReportService from '../services/ReportService';
+import { nombreToId } from '../utils/routesData'; // para evitar zonas peligrosas (aún usando IDs)
 
 type RouteScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Ruta'>;
 
 const RouteScreen: React.FC = () => {
   const navigation = useNavigation<RouteScreenNavigationProp>();
 
-  const [origen, setOrigen] = useState<string>('');
-  const [destino, setDestino] = useState<string>('');
+  const [origen, setOrigen] = useState<Place | null>(null);
+  const [destino, setDestino] = useState<Place | null>(null);
   const [origenModal, setOrigenModal] = useState(false);
   const [destinoModal, setDestinoModal] = useState(false);
-  const [mensajeError, setMensajeError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
+  const [mensajeError, setMensajeError] = useState('');
 
-  const lugaresOptions = getLugaresOptions();
-  const filteredOptions = lugaresOptions.filter(opt =>
-    opt.label.toLowerCase().includes(searchText.toLowerCase())
-  );
+  // Buscar lugares cuando cambia el texto
+  const handleSearch = async (text: string) => {
+    setSearchText(text);
+    if (text.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    setLoading(true);
+    const results = await GoogleMapsService.searchPlaces(text);
+    setSearchResults(results);
+    setLoading(false);
+  };
+
+  const seleccionarLugar = (place: Place) => {
+    if (origenModal) {
+      setOrigen(place);
+      setOrigenModal(false);
+    } else if (destinoModal) {
+      setDestino(place);
+      setDestinoModal(false);
+    }
+    setSearchText('');
+    setSearchResults([]);
+  };
 
   const buscarRuta = async () => {
     if (!origen || !destino) {
@@ -41,69 +64,31 @@ const RouteScreen: React.FC = () => {
       return;
     }
 
-    if (origen === destino) {
-      setMensajeError('El origen y destino no pueden ser el mismo');
-      return;
-    }
+    // Aquí deberías implementar la lógica de evitar zonas peligrosas
+    // usando ReportService y comparando coordenadas.
+    // Por simplicidad, ahora mismo obtenemos la ruta directamente.
+    const route = await GoogleMapsService.getRoute(
+      origen.latitude,
+      origen.longitude,
+      destino.latitude,
+      destino.longitude
+    );
 
-    setLoading(true);
-    try {
-      // Obtener reportes desde Firestore
-      const reports = await ReportService.getAllReports();
-      
-      const lugaresConReportes = reports.map(r => r.lugar);
-      const idsProhibidos = new Set<string>();
-      lugaresConReportes.forEach(nombre => {
-        const id = nombreToId[nombre];
-        if (id) idsProhibidos.add(id);
+    if (route) {
+      navigation.navigate('Inicio', {
+        originCoords: { latitude: origen.latitude, longitude: origen.longitude },
+        destCoords: { latitude: destino.latitude, longitude: destino.longitude },
+        route,
       });
-      
-      // No prohibir origen y destino
-      idsProhibidos.delete(origen);
-      idsProhibidos.delete(destino);
-
-      const ruta = cityGraph.encontrarRutaEvitando(origen, destino, idsProhibidos);
-
-      if (ruta) {
-        navigation.navigate('Inicio', { origen, destino, ruta });
-      } else {
-        setMensajeError('No se encontró una ruta segura. Intenta con otro origen/destino o reporta menos zonas.');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Error al consultar zonas peligrosas');
-    } finally {
-      setLoading(false);
+    } else {
+      setMensajeError('No se pudo calcular la ruta. Intenta de nuevo.');
     }
   };
 
   const resetSelection = () => {
-    setOrigen('');
-    setDestino('');
+    setOrigen(null);
+    setDestino(null);
     setMensajeError('');
-  };
-
-  const handleSelect = (value: string) => {
-    if (origenModal) {
-      setOrigen(value);
-      setOrigenModal(false);
-    } else if (destinoModal) {
-      setDestino(value);
-      setDestinoModal(false);
-    }
-    setSearchText('');
-  };
-
-  const renderLugarItem = ({ item }: { item: { label: string; value: string } }) => (
-    <TouchableOpacity
-      style={styles.modalItem}
-      onPress={() => handleSelect(item.value)}
-    >
-      <Text style={styles.modalItemText}>{item.label}</Text>
-    </TouchableOpacity>
-  );
-
-  const getNombreLugar = (id: string) => {
-    return lugares.find((l) => l.id === id)?.nombre || id;
   };
 
   return (
@@ -119,10 +104,11 @@ const RouteScreen: React.FC = () => {
             setOrigenModal(true);
             setDestinoModal(false);
             setSearchText('');
+            setSearchResults([]);
           }}
         >
           <Text style={styles.selectButtonText}>
-            {origen ? getNombreLugar(origen) : 'Seleccionar origen'}
+            {origen ? origen.name : 'Seleccionar origen'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -135,15 +121,16 @@ const RouteScreen: React.FC = () => {
             setDestinoModal(true);
             setOrigenModal(false);
             setSearchText('');
+            setSearchResults([]);
           }}
         >
           <Text style={styles.selectButtonText}>
-            {destino ? getNombreLugar(destino) : 'Seleccionar destino'}
+            {destino ? destino.name : 'Seleccionar destino'}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Modal con buscador */}
+      {/* Modal de búsqueda */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -152,39 +139,49 @@ const RouteScreen: React.FC = () => {
           setOrigenModal(false);
           setDestinoModal(false);
           setSearchText('');
+          setSearchResults([]);
         }}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Seleccionar {origenModal ? 'origen' : 'destino'}
+              Buscar {origenModal ? 'origen' : 'destino'}
             </Text>
-
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar lugar..."
+              placeholder="Escribe el nombre del lugar..."
               value={searchText}
-              onChangeText={setSearchText}
+              onChangeText={handleSearch}
               autoFocus={true}
             />
-
+            {loading && <Text style={styles.loadingText}>Buscando...</Text>}
             <FlatList
-              data={filteredOptions}
-              keyExtractor={(item) => item.value}
-              renderItem={renderLugarItem}
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => seleccionarLugar(item)}
+                >
+                  <Text style={styles.modalItemText}>{item.name}</Text>
+                  <Text style={styles.modalItemAddress}>{item.address}</Text>
+                </TouchableOpacity>
+              )}
               style={styles.list}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
-                <Text style={styles.emptyText}>No se encontraron lugares</Text>
+                searchText.length >= 3 && !loading ? (
+                  <Text style={styles.emptyText}>No se encontraron lugares</Text>
+                ) : null
               }
             />
-
             <CustomButton
               title="Cancelar"
               onPress={() => {
                 setOrigenModal(false);
                 setDestinoModal(false);
                 setSearchText('');
+                setSearchResults([]);
               }}
               variant="secondary"
             />
@@ -194,18 +191,16 @@ const RouteScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <CustomButton
-          title={loading ? "Buscando..." : "Buscar Ruta Segura"}
+          title="Buscar Ruta Segura"
           onPress={buscarRuta}
           variant="primary"
           style={styles.button}
-          disabled={loading}
         />
         <CustomButton
           title="Reiniciar"
           onPress={resetSelection}
           variant="secondary"
           style={styles.button}
-          disabled={loading}
         />
       </View>
 
@@ -214,20 +209,10 @@ const RouteScreen: React.FC = () => {
           <Text style={styles.errorText}>{mensajeError}</Text>
         </View>
       ) : null}
-
-      <View style={styles.graphContainer}>
-        <Text style={styles.graphTitle}>Lugares disponibles:</Text>
-        {lugares.map((lugar) => (
-          <View key={lugar.id} style={styles.lugarInfo}>
-            <Text style={styles.lugarName}>📍 {lugar.nombre}</Text>
-          </View>
-        ))}
-      </View>
     </ScrollView>
   );
 };
 
-// Estilos (iguales que antes)
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -286,7 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
-    width: '80%',
+    width: '90%',
     maxHeight: '80%',
   },
   modalTitle: {
@@ -298,14 +283,19 @@ const styles = StyleSheet.create({
   searchInput: {
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
     marginBottom: 15,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
   },
+  loadingText: {
+    textAlign: 'center',
+    padding: 10,
+    color: '#666',
+  },
   list: {
-    maxHeight: 300,
+    maxHeight: 400,
   },
   modalItem: {
     padding: 15,
@@ -314,7 +304,12 @@ const styles = StyleSheet.create({
   },
   modalItemText: {
     fontSize: 16,
-    textAlign: 'center',
+    fontWeight: '500',
+  },
+  modalItemAddress: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   emptyText: {
     textAlign: 'center',
@@ -331,25 +326,6 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     textAlign: 'center',
     fontSize: 14,
-  },
-  graphContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  graphTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
-  lugarInfo: {
-    marginBottom: 8,
-  },
-  lugarName: {
-    fontSize: 14,
-    color: '#007AFF',
   },
 });
 
