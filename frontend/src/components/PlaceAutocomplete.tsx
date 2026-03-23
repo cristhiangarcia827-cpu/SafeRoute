@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, TextInput, FlatList, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import GoogleMapsService from '../services/GoogleMapsService'; // Importación por defecto
-import { Place } from '../models/Place'; // Modelo unificado
+import React, { useEffect, useState } from 'react';
+import { View, TextInput, FlatList, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import RoutingService from '../services/RoutingService';
+import { Place } from '../models/Place';
 
 interface PlaceAutocompleteProps {
   onPlaceSelected: (place: Place) => void;
@@ -11,12 +11,14 @@ interface PlaceAutocompleteProps {
 const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({ onPlaceSelected, placeholder }) => {
   const [query, setQuery] = useState('');
   const [predictions, setPredictions] = useState<Place[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleSearch = async (text: string) => {
-    setQuery(text);
     if (text.length > 2) {
-      const results = await GoogleMapsService.searchPlaces(text);
+      setLoading(true);
+      const results = await RoutingService.searchPlaces(text);
       setPredictions(results);
+      setLoading(false);
     } else {
       setPredictions([]);
     }
@@ -28,14 +30,24 @@ const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({ onPlaceSelected, 
     setPredictions([]);
   };
 
+  useEffect(() => {
+    let timeoutId = setTimeout(() => {
+      handleSearch(query);
+    }, 3000);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+
+
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.input}
         value={query}
-        onChangeText={handleSearch}
+        onChangeText={setQuery}
         placeholder={placeholder || 'Buscar lugar...'}
       />
+      {loading && <ActivityIndicator style={styles.loader} />}
       {predictions.length > 0 && (
         <FlatList
           data={predictions}
@@ -64,6 +76,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     fontSize: 16,
+  },
+  loader: {
+    marginTop: 10,
   },
   list: {
     maxHeight: 200,

@@ -1,5 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { RouteResult } from '../services/GoogleMapsService';
+import { RouteResult } from '../services/RoutingService';
 
 export type TabParamList = {
   Inicio: {

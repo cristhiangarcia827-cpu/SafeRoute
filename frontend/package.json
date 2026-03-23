@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@julekgwa/react-native-places-autocomplete": "^1.0.2",
     "@mapbox/polyline": "^1.2.1",
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/native": "^7.1.33",
@@ -26,6 +27,7 @@
     "react-native-google-places-autocomplete": "^2.6.4",
     "react-native-maps": "1.27.2",
     "react-native-maps-directions": "^1.9.0",
+    "react-native-svg": "15.15.3",
     "react-native-vector-icons": "^10.3.0"
   },
   "devDependencies": {

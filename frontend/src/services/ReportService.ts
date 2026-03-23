@@ -1,25 +1,28 @@
 import { db } from '../firebase/config';
-import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  query,
-  orderBy,
-  Timestamp,
-} from 'firebase/firestore';
-import { Report } from '../models/Report';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { Report, NewReport } from '../models/Report';
 
 const REPORTS_COLLECTION = 'reports';
 
 class ReportService {
-  async addReport(report: Omit<Report, 'id'>): Promise<Report> {
+  async addReport(report: NewReport): Promise<Report> {
     const docRef = await addDoc(collection(db, REPORTS_COLLECTION), {
-      ...report,
-      fecha: Timestamp.fromDate(new Date(report.fecha)),
+      lugar: report.lugar,
+      tipoIncidente: report.tipoIncidente,
+      descripcion: report.descripcion,
+      fecha: Timestamp.fromDate(report.fecha),
+      latitude: report.latitude,
+      longitude: report.longitude,
     });
-    return { ...report, id: docRef.id } as Report;
+    return {
+      id: docRef.id,
+      lugar: report.lugar,
+      tipoIncidente: report.tipoIncidente,
+      descripcion: report.descripcion,
+      fecha: report.fecha.toLocaleDateString(),
+      latitude: report.latitude,
+      longitude: report.longitude,
+    };
   }
 
   async getAllReports(): Promise<Report[]> {
@@ -32,7 +35,7 @@ class ReportService {
         lugar: data.lugar,
         tipoIncidente: data.tipoIncidente,
         descripcion: data.descripcion,
-        fecha: data.fecha?.toDate().toLocaleDateString() || '',
+        fecha: data.fecha?.toDate?.().toLocaleDateString() || '',
         latitude: data.latitude,
         longitude: data.longitude,
       } as Report;

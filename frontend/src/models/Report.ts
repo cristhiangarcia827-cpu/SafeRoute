@@ -8,4 +8,8 @@ export interface Report {
   longitude?: number;
 }
 
+export type NewReport = Omit<Report, 'id' | 'fecha'> & {
+  fecha: Date;
+};
+
 export type IncidenteType = 'Robo' | 'Asalto' | 'Acoso' | 'Zona Oscura' | 'Otro';
