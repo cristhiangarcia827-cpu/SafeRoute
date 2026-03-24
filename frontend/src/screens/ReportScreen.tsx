@@ -7,7 +7,7 @@ import {
   Modal,
   TouchableOpacity,
   TextInput,
-  FlatList,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -15,7 +15,7 @@ import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
 import PlaceAutocomplete from '../components/PlaceAutocomplete';
 import ReportService from '../services/ReportService';
-import { IncidenteType } from '../models/Report';
+import { IncidenteType, NewReport } from '../models/Report';
 import { Place } from '../models/Place';
 
 type ReportScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Reportar'>;
@@ -47,7 +47,7 @@ const ReportScreen: React.FC = () => {
       return;
     }
 
-    const newReport = {
+    const newReport: NewReport = {
       lugar: lugar.name,
       tipoIncidente: tipoFinal,
       descripcion: descripcion.trim(),
@@ -84,8 +84,11 @@ const ReportScreen: React.FC = () => {
     }
   };
 
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
+  return (
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.label}>Lugar del incidente *</Text>
       <PlaceAutocomplete
         onPlaceSelected={setLugar}
@@ -139,20 +142,8 @@ const ReportScreen: React.FC = () => {
         variant="secondary"
         style={styles.button}
       />
-    </View>
-  );
 
-  return (
-    <>
-      <FlatList
-        data={[]}
-        keyExtractor={() => 'header'}
-        renderItem={null}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={true}
-      />
-
+      {/* Modal para tipo de incidente - sin cambios */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -185,16 +176,14 @@ const ReportScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-    </>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  listContainer: {
+  container: {
     flexGrow: 1,
     backgroundColor: '#F5F5F5',
-  },
-  headerContainer: {
     padding: 20,
   },
   label: {

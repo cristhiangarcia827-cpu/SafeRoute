@@ -1,39 +1,29 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Alert,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AlertItem from '../components/AlertItem';
 import CustomButton from '../components/CustomButton';
-import ReportService from '../services/ReportService'; 
+import ReportService from '../services/ReportService';
 import { Report } from '../models/Report';
 
 const AlertListScreen: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const loadReports = async () => {
-    setLoading(true);
+  const loadReports = useCallback(async () => {
     try {
       const allReports = await ReportService.getAllReports();
       setReports(allReports);
     } catch (error) {
+      console.error('Error loading reports:', error);
       Alert.alert('Error', 'No se pudieron cargar los reportes');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadReports();
-    }, [])
+    }, [loadReports])
   );
 
   const onRefresh = async () => {
@@ -42,7 +32,7 @@ const AlertListScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     Alert.alert(
       'Eliminar reporte',
       '¿Estás seguro de que quieres eliminar este reporte?',
@@ -64,7 +54,7 @@ const AlertListScreen: React.FC = () => {
     );
   };
 
-  const handleDeleteAll = () => {
+  const handleDeleteAll = async () => {
     if (reports.length === 0) return;
 
     Alert.alert(
@@ -77,29 +67,18 @@ const AlertListScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Eliminar uno por uno
               for (const report of reports) {
-                if (report.id) {
-                  await ReportService.deleteReport(report.id);
-                }
+                await ReportService.deleteReport(report.id);
               }
               await loadReports();
             } catch (error) {
-              Alert.alert('Error', 'No se pudieron eliminar los reportes');
+              Alert.alert('Error', 'No se pudieron eliminar todos los reportes');
             }
           },
         },
       ]
     );
   };
-
-  if (loading && reports.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Cargando reportes...</Text>
-      </View>
-    );
-  }
 
   if (reports.length === 0) {
     return (
@@ -129,7 +108,7 @@ const AlertListScreen: React.FC = () => {
 
       <FlatList
         data={reports}
-        keyExtractor={(item) => item.id || Math.random().toString()}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <AlertItem report={item} onDelete={handleDelete} />
         )}

@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  Alert,
   FlatList,
 } from 'react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -14,6 +12,7 @@ import { TabParamList } from '../navigation/types';
 import CustomButton from '../components/CustomButton';
 import PlaceAutocomplete from '../components/PlaceAutocomplete';
 import RoutingService from '../services/RoutingService';
+import ReportService from '../services/ReportService';
 import { Place } from '../models/Place';
 
 type RouteScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Ruta'>;
@@ -24,6 +23,7 @@ const RouteScreen: React.FC = () => {
   const [origen, setOrigen] = useState<Place | null>(null);
   const [destino, setDestino] = useState<Place | null>(null);
   const [mensajeError, setMensajeError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const buscarRuta = async () => {
     if (!origen || !destino) {
@@ -31,21 +31,46 @@ const RouteScreen: React.FC = () => {
       return;
     }
 
-    const route = await RoutingService.getRoute(
-      origen.latitude,
-      origen.longitude,
-      destino.latitude,
-      destino.longitude
-    );
+    setLoading(true);
+    setMensajeError('');
+    try {
+      // Obtener todos los reportes desde Firestore
+      const reports = await ReportService.getAllReports();
 
-    if (route) {
-      navigation.navigate('Inicio', {
-        originCoords: { latitude: origen.latitude, longitude: origen.longitude },
-        destCoords: { latitude: destino.latitude, longitude: destino.longitude },
-        route,
-      });
-    } else {
-      setMensajeError('No se pudo calcular la ruta. Intenta de nuevo.');
+      // Filtrar los que tienen coordenadas
+      const validReports = reports
+        .filter(r => r.latitude && r.longitude)
+        .map(r => ({
+          id: r.id,
+          latitude: r.latitude!,
+          longitude: r.longitude!,
+          lugar: r.lugar,
+          tipoIncidente: r.tipoIncidente,
+        }));
+
+      // Solicitar ruta segura
+      const route = await RoutingService.getSafeRoute(
+        origen.latitude,
+        origen.longitude,
+        destino.latitude,
+        destino.longitude,
+        validReports
+      );
+
+      if (route) {
+        navigation.navigate('Inicio', {
+          originCoords: { latitude: origen.latitude, longitude: origen.longitude },
+          destCoords: { latitude: destino.latitude, longitude: destino.longitude },
+          route,
+        });
+      } else {
+        setMensajeError('No se pudo calcular la ruta. Intenta de nuevo.');
+      }
+    } catch (error) {
+      console.error(error);
+      setMensajeError('Error al obtener reportes o calcular ruta');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,7 +99,6 @@ const RouteScreen: React.FC = () => {
     setDestino(destinoEjemplo);
   };
 
-  // Renderiza todo el contenido como encabezado del FlatList
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <Text style={styles.title}>Buscar Ruta Segura</Text>
@@ -82,12 +106,7 @@ const RouteScreen: React.FC = () => {
 
       <View style={styles.selectContainer}>
         <Text style={styles.label}>Origen:</Text>
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() => {
-            // Aquí no usamos modal, el autocomplete está directamente
-          }}
-        >
+        <TouchableOpacity style={styles.selectButton}>
           <Text style={styles.selectButtonText}>
             {origen ? origen.name : 'Seleccionar origen'}
           </Text>
@@ -113,16 +132,18 @@ const RouteScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <CustomButton
-          title="Buscar Ruta Segura"
+          title={loading ? "Buscando ruta segura..." : "Buscar Ruta Segura"}
           onPress={buscarRuta}
           variant="primary"
           style={styles.button}
+          disabled={loading}
         />
         <CustomButton
           title="Reiniciar"
           onPress={resetSelection}
           variant="secondary"
           style={styles.button}
+          disabled={loading}
         />
       </View>
 
@@ -131,6 +152,7 @@ const RouteScreen: React.FC = () => {
         onPress={usarEjemplo}
         variant="primary"
         style={styles.exampleButton}
+        disabled={loading}
       />
 
       {mensajeError ? (

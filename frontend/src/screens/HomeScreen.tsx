@@ -39,7 +39,6 @@ const HomeScreen: React.FC = () => {
       setLocationPermission(status === 'granted');
       
       if (status === 'granted') {
-        // Obtener ubicación actual
         const location = await Location.getCurrentPositionAsync({});
         setUserLocation({
           latitude: location.coords.latitude,
@@ -162,6 +161,12 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.routePath}>
               Distancia: {routeData.distance} | Duración: {routeData.duration}
             </Text>
+            {/* Mostrar índice de seguridad si está disponible */}
+            {routeData.dangerScore !== undefined && (
+              <Text style={styles.safetyScore}>
+                Índice de seguridad: {Math.round((1 - routeData.dangerScore) * 100)}%
+              </Text>
+            )}
             <TouchableOpacity onPress={limpiarRuta} style={styles.clearButton}>
               <Text style={styles.clearButtonText}>Limpiar ruta</Text>
             </TouchableOpacity>
@@ -255,6 +260,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     marginBottom: 10,
+  },
+  safetyScore: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginTop: 5,
+    marginBottom: 8,
   },
   clearButton: {
     alignSelf: 'flex-end',
