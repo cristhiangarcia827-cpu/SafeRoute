@@ -6,7 +6,7 @@ export interface RouteResult {
   polyline: Array<{ latitude: number; longitude: number }>;
   steps: any[];
   dangerScore?: number;
-  alternatives?: RouteResult[];
+  alternativesCount?: number;
 }
 
 export interface Report {
@@ -60,7 +60,7 @@ class RoutingService {
     return minDist;
   }
 
-  private evaluateRoute(route: RouteResult, reports: Report[], dangerRadius = 200): number {
+  private evaluateRoute(route: RouteResult, reports: Report[], dangerRadius = 800): number {
     let totalDanger = 0;
     for (const report of reports) {
       const dist = this.minDistanceToPolyline(
@@ -97,7 +97,6 @@ class RoutingService {
     }
   }
 
-  // Ruta simple (sin evaluación de peligro)
   async getRoute(
     originLat: number,
     originLng: number,
@@ -107,7 +106,6 @@ class RoutingService {
     return this.getSafeRoute(originLat, originLng, destLat, destLng, []);
   }
 
-  // Ruta más segura considerando reportes
   async getSafeRoute(
     originLat: number,
     originLng: number,
@@ -135,16 +133,23 @@ class RoutingService {
           polyline: coordinates,
           steps: [],
           dangerScore: 0,
+          alternativesCount: routes.length,
         };
       });
 
-      if (!reports || reports.length === 0) return routeResults[0];
+      if (!reports || reports.length === 0) {
+        const best = routeResults[0];
+        best.dangerScore = 0;
+        return best;
+      }
 
       for (const route of routeResults) {
         route.dangerScore = this.evaluateRoute(route, reports);
       }
       routeResults.sort((a, b) => (a.dangerScore || 0) - (b.dangerScore || 0));
-      return routeResults[0];
+      const bestRoute = routeResults[0];
+      bestRoute.alternativesCount = routes.length;
+      return bestRoute;
     } catch (error) {
       console.error('Error getting safe route:', error);
       return null;

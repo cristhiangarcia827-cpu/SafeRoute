@@ -88,6 +88,7 @@ const ReportScreen: React.FC = () => {
     <ScrollView
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={true}
     >
       <Text style={styles.label}>Lugar del incidente *</Text>
       <PlaceAutocomplete
@@ -143,7 +144,7 @@ const ReportScreen: React.FC = () => {
         style={styles.button}
       />
 
-      {/* Modal para tipo de incidente - sin cambios */}
+      {/* Modal para tipo de incidente */}
       <Modal
         animationType="slide"
         transparent={true}

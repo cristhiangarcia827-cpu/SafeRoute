@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, TextInput, FlatList, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, TextInput, ScrollView, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import RoutingService from '../services/RoutingService';
 import { Place } from '../models/Place';
 
@@ -12,8 +12,12 @@ const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({ onPlaceSelected, 
   const [query, setQuery] = useState('');
   const [predictions, setPredictions] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
+  const lastQueryRef = useRef('');
 
   const handleSearch = async (text: string) => {
+    if (text === lastQueryRef.current) return;
+    lastQueryRef.current = text;
+
     if (text.length > 2) {
       setLoading(true);
       const results = await RoutingService.searchPlaces(text);
@@ -24,20 +28,20 @@ const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({ onPlaceSelected, 
     }
   };
 
-  const handleSelect = (place: Place) => {
-    onPlaceSelected(place);
-    setQuery('');
-    setPredictions([]);
-  };
-
   useEffect(() => {
-    let timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       handleSearch(query);
-    }, 3000);
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [query]);
 
+  const handleSelect = (place: Place) => {
+    onPlaceSelected(place);
+    setQuery('');
+    setPredictions([]);
+    lastQueryRef.current = '';
+  };
 
   return (
     <View style={styles.container}>
@@ -49,17 +53,22 @@ const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({ onPlaceSelected, 
       />
       {loading && <ActivityIndicator style={styles.loader} />}
       {predictions.length > 0 && (
-        <FlatList
-          data={predictions}
-          keyExtractor={(item) => item.id}
+        <ScrollView
           style={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => handleSelect(item)} style={styles.item}>
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          {predictions.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              onPress={() => handleSelect(item)}
+              style={styles.item}
+            >
               <Text style={styles.mainText}>{item.name}</Text>
               <Text style={styles.secondaryText}>{item.address}</Text>
             </TouchableOpacity>
-          )}
-        />
+          ))}
+        </ScrollView>
       )}
     </View>
   );

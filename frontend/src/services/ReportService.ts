@@ -1,6 +1,7 @@
 import { db } from '../firebase/config';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp } from 'firebase/firestore';
 import { Report, NewReport } from '../models/Report';
+import ReportCache from './ReportCache';
 
 const REPORTS_COLLECTION = 'reports';
 
@@ -14,7 +15,7 @@ class ReportService {
       latitude: report.latitude,
       longitude: report.longitude,
     });
-    return {
+    const newReport: Report = {
       id: docRef.id,
       lugar: report.lugar,
       tipoIncidente: report.tipoIncidente,
@@ -23,12 +24,14 @@ class ReportService {
       latitude: report.latitude,
       longitude: report.longitude,
     };
+    ReportCache.addReport(newReport);
+    return newReport;
   }
 
   async getAllReports(): Promise<Report[]> {
     const q = query(collection(db, REPORTS_COLLECTION), orderBy('fecha', 'desc'));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
+    const reports = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -40,10 +43,13 @@ class ReportService {
         longitude: data.longitude,
       } as Report;
     });
+    ReportCache.loadReports(reports);
+    return reports;
   }
 
   async deleteReport(id: string): Promise<void> {
     await deleteDoc(doc(db, REPORTS_COLLECTION, id));
+    ReportCache.removeReport(id);
   }
 }
 

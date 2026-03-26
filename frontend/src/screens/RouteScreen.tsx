@@ -34,10 +34,7 @@ const RouteScreen: React.FC = () => {
     setLoading(true);
     setMensajeError('');
     try {
-      // Obtener todos los reportes desde Firestore
       const reports = await ReportService.getAllReports();
-
-      // Filtrar los que tienen coordenadas
       const validReports = reports
         .filter(r => r.latitude && r.longitude)
         .map(r => ({
@@ -48,7 +45,6 @@ const RouteScreen: React.FC = () => {
           tipoIncidente: r.tipoIncidente,
         }));
 
-      // Solicitar ruta segura
       const route = await RoutingService.getSafeRoute(
         origen.latitude,
         origen.longitude,
@@ -78,25 +74,6 @@ const RouteScreen: React.FC = () => {
     setOrigen(null);
     setDestino(null);
     setMensajeError('');
-  };
-
-  const usarEjemplo = () => {
-    const origenEjemplo: Place = {
-      id: 'ejemplo1',
-      name: 'Puerta del Sol (Ejemplo)',
-      address: 'Madrid, España',
-      latitude: 40.416775,
-      longitude: -3.703790,
-    };
-    const destinoEjemplo: Place = {
-      id: 'ejemplo2',
-      name: 'Plaza Cataluña (Ejemplo)',
-      address: 'Barcelona, España',
-      latitude: 41.387015,
-      longitude: 2.170047,
-    };
-    setOrigen(origenEjemplo);
-    setDestino(destinoEjemplo);
   };
 
   const renderHeader = () => (
@@ -146,14 +123,6 @@ const RouteScreen: React.FC = () => {
           disabled={loading}
         />
       </View>
-
-      <CustomButton
-        title="Usar ruta de ejemplo (Madrid - Barcelona)"
-        onPress={usarEjemplo}
-        variant="primary"
-        style={styles.exampleButton}
-        disabled={loading}
-      />
 
       {mensajeError ? (
         <View style={styles.errorContainer}>

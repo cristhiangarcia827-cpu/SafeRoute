@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,13 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { TabParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
+import ReportService from '../services/ReportService';
+import ReportCache from '../services/ReportCache';
+import { Report } from '../models/Report';
 
 type HomeScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Inicio'>;
 type HomeScreenRouteProp = RouteProp<TabParamList, 'Inicio'>;
@@ -31,13 +34,31 @@ const HomeScreen: React.FC = () => {
   const [routeData, setRouteData] = useState(route.params?.route);
   const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
 
-  // Solicitar permisos de ubicación al montar el componente
+  const loadReports = useCallback(async () => {
+    try {
+      let cached = ReportCache.getAllReports();
+      if (cached.length === 0) {
+        await ReportService.getAllReports();
+        cached = ReportCache.getAllReports();
+      }
+      setReports(cached);
+    } catch (error) {
+      console.error('Error loading reports for map markers:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadReports();
+    }, [loadReports])
+  );
+
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       setLocationPermission(status === 'granted');
-      
       if (status === 'granted') {
         const location = await Location.getCurrentPositionAsync({});
         setUserLocation({
@@ -53,7 +74,6 @@ const HomeScreen: React.FC = () => {
     })();
   }, []);
 
-  // Efecto para centrar el mapa cuando llega una ruta nueva
   useEffect(() => {
     if (route.params?.route) {
       setOriginCoords(route.params.originCoords);
@@ -83,7 +103,6 @@ const HomeScreen: React.FC = () => {
     navigation.setParams({ originCoords: undefined, destCoords: undefined, route: undefined });
   };
 
-  // Región inicial: si tenemos ubicación del usuario, centramos ahí; si no, una ubicación por defecto (Madrid)
   const initialRegion: Region = userLocation
     ? {
         latitude: userLocation.latitude,
@@ -98,7 +117,6 @@ const HomeScreen: React.FC = () => {
         longitudeDelta: 10,
       };
 
-  // Si aún estamos comprobando permisos, mostrar un indicador
   if (locationPermission === null) {
     return (
       <View style={styles.loadingContainer}>
@@ -124,6 +142,24 @@ const HomeScreen: React.FC = () => {
             showsCompass={true}
             showsScale={true}
           >
+            {/* Marcadores de reportes */}
+            {reports.map((report) => {
+              if (report.latitude && report.longitude) {
+                return (
+                  <Marker
+                    key={report.id}
+                    coordinate={{
+                      latitude: report.latitude,
+                      longitude: report.longitude,
+                    }}
+                    title={report.lugar}
+                    description={`${report.tipoIncidente} - ${report.descripcion.substring(0, 50)}`}
+                    pinColor="red"
+                  />
+                );
+              }
+              return null;
+            })}
             {originCoords && (
               <Marker
                 coordinate={originCoords}
@@ -161,10 +197,14 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.routePath}>
               Distancia: {routeData.distance} | Duración: {routeData.duration}
             </Text>
-            {/* Mostrar índice de seguridad si está disponible */}
             {routeData.dangerScore !== undefined && (
               <Text style={styles.safetyScore}>
                 Índice de seguridad: {Math.round((1 - routeData.dangerScore) * 100)}%
+              </Text>
+            )}
+            {routeData.alternativesCount === 1 && (
+              <Text style={styles.noAlternativeText}>
+                ⚠️ No hay rutas alternativas disponibles. Esta es la única opción.
               </Text>
             )}
             <TouchableOpacity onPress={limpiarRuta} style={styles.clearButton}>
@@ -259,17 +299,23 @@ const styles = StyleSheet.create({
   routePath: {
     fontSize: 14,
     color: '#333',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   safetyScore: {
     fontSize: 14,
     color: '#4CAF50',
     fontWeight: '600',
     marginTop: 5,
-    marginBottom: 8,
+  },
+  noAlternativeText: {
+    fontSize: 14,
+    color: '#FF9500',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
   clearButton: {
     alignSelf: 'flex-end',
+    marginTop: 10,
   },
   clearButtonText: {
     color: '#007AFF',
